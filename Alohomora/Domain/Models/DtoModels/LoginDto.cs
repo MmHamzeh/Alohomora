@@ -2,20 +2,20 @@
 
 public class LoginDto : IDto
 {
-    internal string PhoneNumber { get; set; }
-    internal bool RememberMe { get; set; }
+    public string PhoneNumber { get; set; } = string.Empty;
+    public bool RememberMe { get; set; }
 
-    internal string? ReturnUrl { get; set; }
+    public string? ReturnUrl { get; set; }
 
 }
 
 public class LoginPasswordDto : LoginDto
 {
-    internal string Password { get; set; }
+    public string Password { get; set; } = string.Empty;
 }
 
 public class LoginOtpDto : LoginDto
 {
-    internal string AuthOtpCode { get; set; }
+    public string AuthOtpCode { get; set; } = string.Empty;
 
 }

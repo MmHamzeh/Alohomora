@@ -6,6 +6,7 @@ public interface IResponse
     public bool HasError { get; set; }
     public string? ExceptionMessage { get; set; }
     public HttpStatusCode StatusCode { get; set; }
+    public bool Success { get; }
 }
 
 
@@ -15,6 +16,7 @@ public class Response : IResponse
     internal Response()
     {
         StatusCode = HttpStatusCode.OK;
+        HasError = false;
     }
 
     internal Response(Exception exception, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
@@ -28,7 +30,7 @@ public class Response : IResponse
     {
         StatusCode = statusCode;
         HasError = true;
-        ExceptionMessage = errorMessage;
+        Message = errorMessage;
     }
 
     internal Response(bool hasError, HttpStatusCode statusCode)
@@ -43,4 +45,6 @@ public class Response : IResponse
     public bool HasError { get; set; }
     public string? ExceptionMessage { get; set; }
     public HttpStatusCode StatusCode { get; set; }
+    
+    public bool Success => !HasError;
 }

@@ -1,15 +1,19 @@
-﻿namespace Alohomora.Sql.Config;
+﻿using Microsoft.Extensions.Configuration;
+
+namespace Alohomora.Sql.Config;
 
 internal static class DataAccessDiHelper
 {
-    internal static void ConfigureServices(IServiceCollection services)
+    internal static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? DatabaseContextHelper.ConnectionString;
 
         //DatabaseContext
         services.AddDbContextPool<DatabaseContext>(opt =>
-            opt.UseSqlServer(DatabaseContextHelper.ConnectionString));
+            opt.UseSqlServer(connectionString));
         services.AddDbContextPool<DatabaseContextRead>(opt =>
-            opt.UseSqlServer(DatabaseContextHelper.ConnectionString));
+            opt.UseSqlServer(connectionString));
 
 
         //Repositories
@@ -19,5 +23,8 @@ internal static class DataAccessDiHelper
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        
+        // Unit of Work
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
     }
 }
