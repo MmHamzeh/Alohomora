@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Alohomora.Core;
 
@@ -29,13 +30,55 @@ public static class AlohomoraExtensions
         ServicesDiHelper
             .ConfigureServices(services);
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var tokenHelper = serviceProvider.GetRequiredService<TokenHelper>();
+            options.TokenValidationParameters = tokenHelper.TokenValidationParameters;
+            
+            // Configure JWT Bearer events
+            options.Events = new JwtBearerEvents
             {
-                using var serviceProvider = services.BuildServiceProvider();
-                var tokenHelper = serviceProvider.GetRequiredService<TokenHelper>();
-                options.TokenValidationParameters = tokenHelper.TokenValidationParameters;
-            });
+                OnAuthenticationFailed = context =>
+                {
+                    Console.WriteLine("🔴 Authentication failed: " + context.Exception.Message);
+                    return Task.CompletedTask;
+                },
+                OnChallenge = context =>
+                {
+                    Console.WriteLine("🟠 Challenge: " + context.ErrorDescription);
+                    return Task.CompletedTask;
+                },
+                OnTokenValidated = context =>
+                {
+                    Console.WriteLine("🟢 Token validated successfully");
+                    return Task.CompletedTask;
+                },
+                OnMessageReceived = context =>
+                {
+                    // Check for token in query string or body if not in header
+                    var accessToken = context.Request.Query["access_token"];
+                    
+                    // If there's no token in the header, try to get it from the query string
+                    if (string.IsNullOrEmpty(context.Request.Headers["Authorization"]) && !string.IsNullOrEmpty(accessToken))
+                    {
+                        context.Token = accessToken;
+                    }
+                    
+                    return Task.CompletedTask;
+                },
+                OnForbidden = context =>
+                {
+                    Console.WriteLine("🟠 Forbidden: " + context.Result.Succeeded);
+                    return Task.CompletedTask;
+                }
+            };
+        });
 
         return services;
     }

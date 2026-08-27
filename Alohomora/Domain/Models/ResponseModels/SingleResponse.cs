@@ -3,6 +3,7 @@
 public interface ISingleResponse<TModel> : IResponse where TModel : class, IVm, new()
 {
     public TModel Model { get; set; }
+    public new bool Success { get; }
 }
 
 public class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : class, IVm, new()
@@ -47,5 +48,7 @@ public class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : cla
     public HttpStatusCode StatusCode { get; set; }
     
     public TModel? Model { get; set; }
+    
+    public bool Success => !HasError;
 }
 
