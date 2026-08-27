@@ -27,6 +27,7 @@ public class Role : IDbTable<long>
     public string Name { get; set; }
     public string FaName { get; set; }
     public string Description { get; set; }
+    public DateTime CreatedOn { get; set; }
 
     #region Relations
 

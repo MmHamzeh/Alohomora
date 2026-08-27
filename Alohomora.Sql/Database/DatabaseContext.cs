@@ -1,6 +1,6 @@
 ﻿namespace Alohomora.Sql.Database;
 
-internal class DatabaseContext : DbContext
+public class DatabaseContext : DbContext
 {
     #region Ctor
 

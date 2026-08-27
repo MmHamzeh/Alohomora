@@ -324,7 +324,7 @@ public class IdentityService : IIdentityService
             ReturnUrl = dto.ReturnUrl
         };
 
-        return new SingleResponse<LoginVm>(loginVm, "User registered successfully");
+        return new SingleResponse<LoginVm>(loginVm){ Message = "User registered successfully" };
     }
 
     public async Task<Response> ForgotPasswordAsync(ForgotPasswordDto dto, CancellationToken ct)
@@ -465,7 +465,7 @@ public class IdentityService : IIdentityService
             return new Response("Role name is required");
 
         // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(u => u.PublicId == dto.UserId, ct);
+        var user = await _userRepository.GetByIdAsync(dto.UserId, ct);
         if (user is null)
             return new Response("User not found");
 
@@ -477,10 +477,9 @@ public class IdentityService : IIdentityService
             return new Response("Role not found");
 
         // Check if user already has this role
-        var existingUserRole = await _userRoleRepository.GetAll()
-            .FirstOrDefaultAsync(ur => ur.UserId == user.Id && ur.RoleId == role.Id, ct);
+        var existingUserRole = await _userRoleRepository.ExistsByUserIdRoleId(user.Id, role.Id, ct);   
 
-        if (existingUserRole is not null)
+        if (existingUserRole is not false)
             return new Response("User already has this role");
 
         // Assign role to user
@@ -507,7 +506,7 @@ public class IdentityService : IIdentityService
             return new Response("Role name is required");
 
         // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(u => u.PublicId == dto.UserId, ct);
+        var user = await _userRepository.GetByIdAsync(dto.UserId, ct);
         if (user is null)
             return new Response("User not found");
 
@@ -535,12 +534,12 @@ public class IdentityService : IIdentityService
     public async Task<ISingleResponse<List<string>>> GetUserRolesAsync(Guid userId, CancellationToken ct)
     {
         if (userId == Guid.Empty)
-            return new SingleResponse<List<string>>(new List<string>(), "User ID is required");
+            return new SingleResponse<List<string>>("User ID is required");
 
         // Find user by PublicId
         var user = await _userRepository.GetByIdAsync(u => u.PublicId == userId, ct);
         if (user is null)
-            return new SingleResponse<List<string>>(new List<string>(), "User not found");
+            return new SingleResponse<List<string>>("User not found");
 
         // Get user roles
         var roles = await _roleRepository.GetUserRolesName(user.Id);

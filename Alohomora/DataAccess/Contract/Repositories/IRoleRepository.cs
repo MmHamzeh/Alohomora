@@ -5,4 +5,6 @@ namespace Alohomora.Core.DataAccess.Contract.Repositories;
 public interface IRoleRepository : IRepository<Role, long>
 {
     Task<IList<string>> GetUserRolesName(long userId);
+    Task AddAsync(Role role, CancellationToken ct);
+    List<Role> GetAll();
 }

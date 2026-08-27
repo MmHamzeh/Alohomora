@@ -1,11 +1,11 @@
 ﻿namespace Alohomora.Core.Domain.Models.ResponseModels;
 
-public interface IListResponse<TModel> : IResponse where TModel : class, IVm, new()
+public interface IListResponse<TModel> : IResponse 
 {
     public List<TModel> ModelList { get; set; }
 }
 
-public class ListResponse<TModel> : IListResponse<TModel> where TModel : class, IVm, new()
+public class ListResponse<TModel> : IListResponse<TModel> 
 {
     #region Ctor
 

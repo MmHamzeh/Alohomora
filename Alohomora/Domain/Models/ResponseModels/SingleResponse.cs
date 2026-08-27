@@ -1,12 +1,12 @@
 ﻿namespace Alohomora.Core.Domain.Models.ResponseModels;
 
-public interface ISingleResponse<TModel> : IResponse where TModel : class, IVm, new()
+public interface ISingleResponse<TModel> : IResponse 
 {
     public TModel Model { get; set; }
     public new bool Success { get; }
 }
 
-public class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : class, IVm, new()
+public class SingleResponse<TModel> : ISingleResponse<TModel> 
 {
 
     #region Ctor
@@ -26,7 +26,7 @@ public class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : cla
 
     internal SingleResponse(Exception exception, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
     {
-        Model = null;
+        Model = default;
         StatusCode = statusCode;
         HasError = true;
         ExceptionMessage = exception.Message;
@@ -34,7 +34,7 @@ public class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : cla
 
     internal SingleResponse(string errorMessage, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
     {
-        Model = null;
+        Model = default;
         StatusCode = statusCode;
         HasError = true;
         Message = errorMessage;

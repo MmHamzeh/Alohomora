@@ -1,4 +1,6 @@
 ﻿using Alohomora.Core.Domain.Models.DtoModels;
+using Alohomora.Core.Domain.Models.ResponseModels;
+using Alohomora.Core.Domain.Models.ViewModels;
 
 namespace Alohomora.Core.Services.Contact;
 

@@ -9,6 +9,7 @@ public class UserRole : IDbTable<long>
 
     #endregion
 
+    public DateTime CreatedOn { get; set; }
 
 
     #region Relations

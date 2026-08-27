@@ -9,4 +9,5 @@ public interface IUserRepository : IRepository<User, long>
     Task AddAsync(User user, CancellationToken ct);
     Task<User?> GetByPublicId(Guid userPublicId, bool enableTracking);
     Task<User?> GetById(long userId, bool enableTracking);
+    Task<User?> GetByIdAsync(Guid userPublicId, CancellationToken ct);
 }
