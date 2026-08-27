@@ -1,5 +1,6 @@
 
 using Alohomora.Core;
+using Alohomora.Sql;
 using Alohomora.Sql.Config;
 using Alohomora.Sql.Database;
 using Microsoft.EntityFrameworkCore;

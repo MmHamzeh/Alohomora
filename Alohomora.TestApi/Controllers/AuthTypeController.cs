@@ -1,4 +1,6 @@
 ﻿using Alohomora.Core;
+using Alohomora.Core.Domain.Models.DtoModels;
+using Alohomora.Core.Services.Contact;
 using Alohomora.Sql;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

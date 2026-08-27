@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Alohomora.Sql.Config;
+using Microsoft.Extensions.Configuration;
 
 namespace Alohomora.Sql;
 

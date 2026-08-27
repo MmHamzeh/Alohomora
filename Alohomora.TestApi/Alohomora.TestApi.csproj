@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Alohomora.Sql\Alohomora.Sql.csproj" />
     <ProjectReference Include="..\Alohomora\Alohomora.Core.csproj" />
   </ItemGroup>
 

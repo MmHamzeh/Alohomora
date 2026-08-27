@@ -36,7 +36,8 @@ public class ListResponse<TModel> : IListResponse<TModel> where TModel : class, 
     public bool HasError { get; set; }
     public string? ExceptionMessage { get; set; }
     public HttpStatusCode StatusCode { get; set; }
-    
+    public bool Success { get; }
+
     public List<TModel>? ModelList { get; set; }
 }
 
