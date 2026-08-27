@@ -1,0 +1,6 @@
+@Alohomora.TestApi_HostAddress = http://localhost:5058
+
+GET {{Alohomora.TestApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Alohomora.TestApi/Alohomora.TestApi.csproj" Id="1ca21a58-ed7f-45fc-a5bd-12a35bd59a03" />
+  <Project Path="Alohomora/Alohomora.csproj" />
+</Solution>
