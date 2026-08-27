@@ -101,4 +101,109 @@ public class AuthController : ControllerBase
         var currentUserId = _userService.CurrentUserId;
         return Ok(new { UserId = currentUserId });
     }
+
+    /// <summary>
+    /// Register a new user with password
+    /// </summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RegisterUser([FromBody] RegisterUserDto dto, CancellationToken ct)
+    {
+        var result = await _identityService.RegisterUserAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Request password reset OTP
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto, CancellationToken ct)
+    {
+        var result = await _identityService.ForgotPasswordAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Reset password with OTP
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto, CancellationToken ct)
+    {
+        var result = await _identityService.ResetPasswordAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Create a new role (requires Admin role)
+    /// </summary>
+    [HttpPost("roles/create")]
+    [Authorize(Policy = "Admin")]
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleDto dto, CancellationToken ct)
+    {
+        var result = await _identityService.CreateRoleAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Assign role to user (requires Admin role)
+    /// </summary>
+    [HttpPost("roles/assign")]
+    [Authorize(Policy = "Admin")]
+    public async Task<IActionResult> AssignRoleToUser([FromBody] AssignRoleToUserDto dto, CancellationToken ct)
+    {
+        var result = await _identityService.AssignRoleToUserAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Remove role from user (requires Admin role)
+    /// </summary>
+    [HttpPost("roles/remove")]
+    [Authorize(Policy = "Admin")]
+    public async Task<IActionResult> RemoveRoleFromUser([FromBody] RemoveRoleFromUserDto dto, CancellationToken ct)
+    {
+        var result = await _identityService.RemoveRoleFromUserAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get user roles
+    /// </summary>
+    [HttpGet("roles/{userId}")]
+    [Authorize]
+    public async Task<IActionResult> GetUserRoles(Guid userId, CancellationToken ct)
+    {
+        var result = await _identityService.GetUserRolesAsync(userId, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }

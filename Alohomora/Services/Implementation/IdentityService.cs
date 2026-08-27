@@ -271,6 +271,283 @@ public class IdentityService : IIdentityService
         });
     }
 
+    public async Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct)
+    {
+        // Validate phone number
+        if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
+
+        var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
+
+        if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
+
+        // Check if user already exists
+        var existingUser = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: false, ct);
+        if (existingUser is not null)
+            return new SingleResponse<LoginVm>("User with this phone number already exists");
+
+        // Create new user
+        var user = new User
+        {
+            PhoneNumber = normalizePhoneNumber,
+            UserName = normalizePhoneNumber,
+            Email = dto.Email,
+            EmailConfirmed = string.IsNullOrEmpty(dto.Email) ? false : false,
+            PhoneNumberConfirmed = false,
+            PasswordHash = _passwordHasher.HashPassword(new User(), dto.Password),
+            CanUsePassword = true,
+            UserStatusId = UserStatusEnm.Active,
+            LockoutEnabled = true,
+            AccessFailedCount = 0,
+            PublicId = Guid.NewGuid(),
+            CreatedOn = DateTime.Now,
+            TwoFactorEnabled = false
+        };
+
+        await _userRepository.AddAsync(user, ct);
+        await _unitOfWork.SaveChanges();
+
+        // Generate tokens
+        var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
+
+        // Cache access token
+        await _accessTokenCache.SetAsync(tokens.AccessTokenId.ToString(),
+            user.PublicId,
+            TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
+            ct);
+
+        var loginVm = new LoginVm
+        {
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            ReturnUrl = dto.ReturnUrl
+        };
+
+        return new SingleResponse<LoginVm>(loginVm, "User registered successfully");
+    }
+
+    public async Task<Response> ForgotPasswordAsync(ForgotPasswordDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            return new Response(ErrorMessageResource.WrongPhoneNumberFormat);
+
+        var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
+
+        if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
+            return new Response(ErrorMessageResource.WrongPhoneNumberFormat);
+
+        var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: false, ct);
+
+        if (user is null)
+            return new Response("No user found with this phone number");
+
+        // Check if OTP already exists
+        var authOtp = await _authOtpRepository.GetValidByPhoneNumber(normalizePhoneNumber, ct);
+
+        if (authOtp is not null)
+        {
+            // Update existing OTP
+            authOtp.Code = OtpHelper.GenerateAuthOtp();
+            authOtp.Expires = DateTime.Now.AddMinutes(5);
+            authOtp.IsUsed = false;
+        }
+        else
+        {
+            // Create new OTP
+            var otp = OtpHelper.GenerateAuthOtp();
+            authOtp = new AuthOtp
+            {
+                PublicId = Guid.NewGuid(),
+                Code = otp,
+                Expires = DateTime.Now.AddMinutes(5),
+                IsUsed = false,
+                UserId = user.Id,
+                UserPhoneNumber = user.PhoneNumber,
+                UserEmail = user.Email
+            };
+
+            await _authOtpRepository.AddAsync(authOtp, ct);
+        }
+
+        await _unitOfWork.SaveChanges();
+
+        // Send OTP via SMS
+        var message = $"{CommonResource.ApplicationName}\n" +
+                      $"کد بازیابی رمز عبور شما: {authOtp.Code}\n" +
+                      $"این کد تا 5 دقیقه معتبر است.";
+
+        await _messageService.SendMessageAsync(normalizePhoneNumber, message);
+
+        var response = new Response("Password reset code sent successfully");
+        
+        if (ApplicationSetting.IsDebugMode)
+            response.Message = $"OTP: {authOtp.Code}";
+
+        return response;
+    }
+
+    public async Task<Response> ResetPasswordAsync(ResetPasswordDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.PhoneNumber) || string.IsNullOrWhiteSpace(dto.OtpCode) || string.IsNullOrWhiteSpace(dto.NewPassword))
+            return new Response("All fields are required");
+
+        var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
+
+        if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
+            return new Response(ErrorMessageResource.WrongPhoneNumberFormat);
+
+        var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: true, ct);
+
+        if (user is null)
+            return new Response("No user found with this phone number");
+
+        // Validate OTP
+        var otp = await _authOtpRepository.GetValidByPhoneNumberAndCode(normalizePhoneNumber, dto.OtpCode, ct);
+
+        if (otp is null || otp.IsUsed || otp.Expires < DateTime.Now)
+            return new Response("Invalid or expired OTP code");
+
+        // Mark OTP as used
+        otp.IsUsed = true;
+
+        // Update password
+        user.PasswordHash = _passwordHasher.HashPassword(user, dto.NewPassword);
+        user.CanUsePassword = true;
+        user.AccessFailedCount = 0;
+        user.LockoutEnabled = false;
+        user.LockoutEnd = null;
+
+        await _unitOfWork.SaveChanges();
+
+        // Send password change notification
+        await SendPasswordChangedNotification(user.PhoneNumber);
+
+        return new Response("Password reset successfully");
+    }
+
+    public async Task<Response> CreateRoleAsync(CreateRoleDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            return new Response("Role name is required");
+
+        if (string.IsNullOrWhiteSpace(dto.FaName))
+            return new Response("Role Persian name is required");
+
+        // Check if role already exists
+        var existingRole = await _roleRepository.GetAll()
+            .FirstOrDefaultAsync(r => r.Name == dto.Name, ct);
+
+        if (existingRole is not null)
+            return new Response("Role with this name already exists");
+
+        var role = new Role
+        {
+            PublicId = Guid.NewGuid(),
+            Name = dto.Name,
+            FaName = dto.FaName,
+            Description = dto.Description ?? string.Empty,
+            CreatedOn = DateTime.Now
+        };
+
+        await _roleRepository.AddAsync(role, ct);
+        await _unitOfWork.SaveChanges();
+
+        return new Response("Role created successfully");
+    }
+
+    public async Task<Response> AssignRoleToUserAsync(AssignRoleToUserDto dto, CancellationToken ct)
+    {
+        if (dto.UserId == Guid.Empty)
+            return new Response("User ID is required");
+
+        if (string.IsNullOrWhiteSpace(dto.RoleName))
+            return new Response("Role name is required");
+
+        // Find user by PublicId
+        var user = await _userRepository.GetByIdAsync(u => u.PublicId == dto.UserId, ct);
+        if (user is null)
+            return new Response("User not found");
+
+        // Find role by name
+        var role = await _roleRepository.GetAll()
+            .FirstOrDefaultAsync(r => r.Name == dto.RoleName, ct);
+        
+        if (role is null)
+            return new Response("Role not found");
+
+        // Check if user already has this role
+        var existingUserRole = await _userRoleRepository.GetAll()
+            .FirstOrDefaultAsync(ur => ur.UserId == user.Id && ur.RoleId == role.Id, ct);
+
+        if (existingUserRole is not null)
+            return new Response("User already has this role");
+
+        // Assign role to user
+        var userRole = new UserRole
+        {
+            PublicId = Guid.NewGuid(),
+            UserId = user.Id,
+            RoleId = role.Id,
+            CreatedOn = DateTime.Now
+        };
+
+        await _userRoleRepository.AddAsync(userRole, ct);
+        await _unitOfWork.SaveChanges();
+
+        return new Response("Role assigned to user successfully");
+    }
+
+    public async Task<Response> RemoveRoleFromUserAsync(RemoveRoleFromUserDto dto, CancellationToken ct)
+    {
+        if (dto.UserId == Guid.Empty)
+            return new Response("User ID is required");
+
+        if (string.IsNullOrWhiteSpace(dto.RoleName))
+            return new Response("Role name is required");
+
+        // Find user by PublicId
+        var user = await _userRepository.GetByIdAsync(u => u.PublicId == dto.UserId, ct);
+        if (user is null)
+            return new Response("User not found");
+
+        // Find role by name
+        var role = await _roleRepository.GetAll()
+            .FirstOrDefaultAsync(r => r.Name == dto.RoleName, ct);
+        
+        if (role is null)
+            return new Response("Role not found");
+
+        // Find user-role relationship
+        var userRole = await _userRoleRepository.GetAll()
+            .FirstOrDefaultAsync(ur => ur.UserId == user.Id && ur.RoleId == role.Id, ct);
+
+        if (userRole is null)
+            return new Response("User does not have this role");
+
+        // Remove role from user
+        _userRoleRepository.Remove(userRole);
+        await _unitOfWork.SaveChanges();
+
+        return new Response("Role removed from user successfully");
+    }
+
+    public async Task<ISingleResponse<List<string>>> GetUserRolesAsync(Guid userId, CancellationToken ct)
+    {
+        if (userId == Guid.Empty)
+            return new SingleResponse<List<string>>(new List<string>(), "User ID is required");
+
+        // Find user by PublicId
+        var user = await _userRepository.GetByIdAsync(u => u.PublicId == userId, ct);
+        if (user is null)
+            return new SingleResponse<List<string>>(new List<string>(), "User not found");
+
+        // Get user roles
+        var roles = await _roleRepository.GetUserRolesName(user.Id);
+        
+        return new SingleResponse<List<string>>(roles.ToList());
+    }
+
 
 
 
