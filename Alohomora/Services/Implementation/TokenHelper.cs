@@ -7,11 +7,12 @@ public class TokenHelper
 {
     #region Fields and Ctor
 
-    private const bool useRsa = false;  
+    private readonly bool useRsa;
     private readonly string SecAlgorithm;
 
-    private readonly string Issuer = ApplicationSetting.DomainName;
-    private readonly string Audience = ApplicationSetting.DomainName;
+    private readonly JwtSettings _settings;
+    private readonly string Issuer;
+    private readonly string Audience;
 
     private readonly RSA? _rsa;
     private readonly byte[]? PrivateKeyPem;
@@ -21,8 +22,13 @@ public class TokenHelper
 
     private TokenValidationParameters? _tokenValidationParameters = null;
 
-    public TokenHelper()
+    public TokenHelper(IOptions<JwtSettings> options)
     {
+        _settings = options.Value;
+        useRsa = _settings.UseRsa;
+        Issuer = _settings.Issuer;
+        Audience = _settings.Audience;
+
         TokenHandler = new();
 
         SecAlgorithm = useRsa
@@ -164,7 +170,7 @@ public class TokenHelper
 
     internal ClaimsPrincipal GetPrincipalFromExpiredToken(string tokenString)
     {
-        var tokenValidationParameters = TokenValidationParameters;
+        var tokenValidationParameters = TokenValidationParameters.Clone();
         tokenValidationParameters.ValidateLifetime = false; // Ignore token expiration for this validation
 
         var principal = TokenHandler.ValidateToken(tokenString, tokenValidationParameters, out var securityToken);
@@ -243,7 +249,7 @@ public class TokenHelper
             Audience = Audience,
             //Claims = claims,
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddMinutes(30),
+            Expires = DateTime.Now.AddMinutes(_settings.AccessTokenExpirationMinutes),
             SigningCredentials = credentials
         };
     }
@@ -264,9 +270,10 @@ public class TokenHelper
         if (_pecretKeyBytes is not null)
             return new SymmetricSecurityKey(_pecretKeyBytes);
 
-        const string secretKey =
-            "A1977D0F-306E-4197-BDAD-FF2000D05CE0-5E5A93A5-4A7C-4EE4-BD9F-D1CD81A4C31D";
-        _pecretKeyBytes = Encoding.UTF8.GetBytes(secretKey);
+        if (string.IsNullOrWhiteSpace(_settings.SecretKey))
+            throw new InvalidOperationException("Jwt:SecretKey is not configured.");
+
+        _pecretKeyBytes = Encoding.UTF8.GetBytes(_settings.SecretKey);
         return new SymmetricSecurityKey(_pecretKeyBytes);
     }
 

@@ -63,7 +63,7 @@ public class TokenService : ITokenService
         oldRefreshToken.IsRevoked = true;
         await _unitOfWork.SaveChanges();
 
-        var user = await _userRepository.GetById(oldRefreshToken.Id, enableTracking: false);
+        var user = await _userRepository.GetById(oldRefreshToken.UserId, enableTracking: false);
 
         if (user is null)
             throw new SecurityTokenException("user is null");

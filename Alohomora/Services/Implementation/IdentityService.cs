@@ -70,10 +70,10 @@ public class IdentityService : IIdentityService
         if (user is null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
 
-        if (user.LockoutEnabled && user.LockoutEnd < DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd > DateTime.Now)
             return await FailedPasswordLoginAttempt(user);
 
-        if (user.LockoutEnabled && user.LockoutEnd >= DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd <= DateTime.Now)
         {
             user.LockoutEnabled = false;
             userHasChanged = true;
@@ -212,7 +212,7 @@ public class IdentityService : IIdentityService
         if (otp.IsUsed)
             return await FailedOtpLoginAttempt(user);
 
-        if (otp.Expires > DateTime.Now)
+        if (otp.Expires < DateTime.Now)
             return await FailedOtpLoginAttempt(user);
 
         otp.IsUsed = true;
