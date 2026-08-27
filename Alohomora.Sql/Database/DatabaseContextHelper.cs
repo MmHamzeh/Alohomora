@@ -1,4 +1,4 @@
-﻿namespace Alohomora.DataAccess.Implementation.Database;
+﻿namespace Alohomora.Sql.Database;
 
 internal abstract class DatabaseContextHelper
 {

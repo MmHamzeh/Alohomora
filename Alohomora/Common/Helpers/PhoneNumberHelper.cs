@@ -1,8 +1,8 @@
-﻿namespace Alohomora.Common.Helpers;
+﻿namespace Alohomora.Core.Common.Helpers;
 
-internal static class PhoneNumberHelper
+public static class PhoneNumberHelper
 {
-    internal static string NormalizePhoneNumber(string input)
+    public static string NormalizePhoneNumber(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
@@ -25,7 +25,7 @@ internal static class PhoneNumberHelper
         return input;
     }
 
-    internal static bool IsValidPhoneNumber(string input)
+    public static bool IsValidPhoneNumber(string input)
     {
         // بررسی طول و شروع با 09
         if (input.Length != 11 || !input.StartsWith("09"))

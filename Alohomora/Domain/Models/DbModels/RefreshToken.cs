@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.DbModels;
+﻿namespace Alohomora.Core.Domain.Models.DbModels;
 
-internal class RefreshToken : IDbTable<long>
+public class RefreshToken : IDbTable<long>
 {
     #region IDbTableProperties
 

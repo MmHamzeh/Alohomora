@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿namespace Alohomora.Core.Domain.Interfaces;
 
-internal interface IDbModel : IDbTable<long>
+public interface IDbModel : IDbTable<long>
 {
     internal DateTime CreatedOn { get; set; }
     internal Guid CreatedBy { get; set; }

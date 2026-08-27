@@ -1,4 +1,4 @@
-﻿namespace Alohomora.Common.Helpers;
+﻿namespace Alohomora.Core.Common.Helpers;
 
 internal static class JsonHelper
 {

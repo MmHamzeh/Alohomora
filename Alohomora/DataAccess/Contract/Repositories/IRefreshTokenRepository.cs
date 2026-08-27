@@ -1,6 +1,8 @@
-﻿namespace Alohomora.DataAccess.Contract.Repositories;
+﻿using Alohomora.Core.Domain.Models.DbModels;
 
-internal interface IRefreshTokenRepository : IRepository<RefreshToken, long>
+namespace Alohomora.Core.DataAccess.Contract.Repositories;
+
+public interface IRefreshTokenRepository : IRepository<RefreshToken, long>
 {
     Task<RefreshToken?> GetActiveByUserPublicId(Guid userPublicId, bool enableTracking,
         CancellationToken ct);

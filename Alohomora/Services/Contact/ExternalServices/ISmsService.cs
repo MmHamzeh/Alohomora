@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Services.Contact.ExternalServices;
+﻿namespace Alohomora.Core.Services.Contact.ExternalServices;
 
-internal interface ISmsService
+public interface ISmsService
 {
     /// <summary>
     /// متد ارسال یک متن به یک یا چند شماره با متد 

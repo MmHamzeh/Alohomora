@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Enums;
+﻿namespace Alohomora.Core.Domain.Enums;
 
-internal enum UserStatusEnm
+public enum UserStatusEnm
 {
     /// <summary>
     /// نامعتبر

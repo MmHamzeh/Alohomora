@@ -1,19 +1,19 @@
-﻿namespace Alohomora.Common.Configs;
+﻿namespace Alohomora.Core.Common.Configs;
 
-internal static class ApplicationSetting
+public static class ApplicationSetting
 {
 #if DEBUG
-    internal const bool IsDebugMode = true;
+    public const bool IsDebugMode = true;
 #else
-    //internal const bool IsDebugMode = false;
-    internal const bool IsDebugMode = true;
+    //public const bool IsDebugMode = false;
+    public const bool IsDebugMode = true;
 #endif
 
+    //TODO: Get these from appsettings.json
+    public const string DomainName = "domain.ir";
+    public const string ApplicationName = "ApplicationName";
 
-    internal const string DomainName = "domain.ir";
-    internal const string ApplicationName = "ApplicationName";
 
 
-
-    internal const int AccessTokenExpirationMinutes = 10;
+    public const int AccessTokenExpirationMinutes = 10;
 }

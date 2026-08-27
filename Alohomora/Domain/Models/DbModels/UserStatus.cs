@@ -1,6 +1,8 @@
-﻿namespace Alohomora.Domain.Models.DbModels;
+﻿using Alohomora.Core.Domain.Enums;
 
-internal class UserStatus : IDbEnm<UserStatusEnm>
+namespace Alohomora.Core.Domain.Models.DbModels;
+
+public class UserStatus : IDbEnm<UserStatusEnm>
 {
     #region IDbEnm Properties
 

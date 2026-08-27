@@ -1,6 +1,9 @@
-﻿namespace Alohomora.Services.Contact;
+﻿using Alohomora.Core.Domain.Models.DbModels;
+using Alohomora.Core.Domain.Models.DtoModels;
 
-internal interface ITokenService
+namespace Alohomora.Core.Services.Contact;
+
+public interface ITokenService
 {
     Task<CreateTokenResult> GenerateTokensAsync(User user, bool rememberMe = false);
     Task<CreateTokenResult> RefreshTokensAsync(string accessToken, string refreshToken);

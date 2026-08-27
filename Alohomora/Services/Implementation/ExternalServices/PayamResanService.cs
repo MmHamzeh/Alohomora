@@ -1,6 +1,11 @@
-﻿namespace Alohomora.Services.Implementation.ExternalServices;
+﻿using Alohomora.Core.Common.Helpers;
+using Alohomora.Core.Domain.Models.DtoModels.ExternalModels;
+using Alohomora.Core.Domain.Models.ViewModels.ExternalModels;
+using Alohomora.Core.Services.Contact.ExternalServices;
 
-internal class PayamResanService : ISmsService
+namespace Alohomora.Core.Services.Implementation.ExternalServices;
+
+public class PayamResanService : ISmsService
 {
     private static readonly RestClient _client = new("http://api.sms-webservice.com/api/V3/");
     private const string ApiKey = ""; // Replace with your actual API key

@@ -1,6 +1,8 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿using Alohomora.Core.Domain.Enums;
 
-internal abstract class IFileDto : IDto
+namespace Alohomora.Core.Domain.Interfaces;
+
+public abstract class IFileDto : IDto
 {
     internal string FileName { get; set; }
     internal string FileExtension { get; set; }

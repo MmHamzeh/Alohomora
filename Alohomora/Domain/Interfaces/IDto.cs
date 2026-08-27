@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿namespace Alohomora.Core.Domain.Interfaces;
 
-internal abstract class IDto
+public abstract class IDto
 {
     private StringBuilder? ErrorMessages { get; set; }
 

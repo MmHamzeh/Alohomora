@@ -1,21 +1,21 @@
-﻿namespace Alohomora.DataAccess.Contract;
+﻿ namespace Alohomora.Core.DataAccess.Contract;
 
-internal interface IRepository
+public interface IRepository
 {
 
 }
 
-internal interface IRepository<TModel, TKey> : IRepository where TModel : IDbTable<TKey>, new()
+public interface IRepository<TModel, TKey> : IRepository where TModel : IDbTable<TKey>, new()
 {
 
 }
 
-internal interface IBaseDataRepository<TModel, TKey> : IRepository where TModel : class, IDbEnm<TKey>, new() where TKey : Enum
+public interface IBaseDataRepository<TModel, TKey> : IRepository where TModel : class, IDbEnm<TKey>, new() where TKey : Enum
 {
     Task<List<TModel>> GetAll(CancellationToken ct);
 }
 
-internal interface IFileDataRepository<TModel> : IRepository where TModel : IDbFile, new()
+public interface IFileDataRepository<TModel> : IRepository where TModel : IDbFile, new()
 {
     Task<TModel?> GetById(long id, bool enableTracking, CancellationToken ct);
     Task<TModel?> GetByGuid(Guid id, bool enableTracking, CancellationToken ct);
@@ -31,7 +31,7 @@ internal interface IFileDataRepository<TModel> : IRepository where TModel : IDbF
 
 }
 
-internal interface ICrudRepository<TModel> : IRepository where TModel : class, IDbTable<long>, new()
+public interface ICrudRepository<TModel> : IRepository where TModel : class, IDbTable<long>, new()
 {
     Task<TModel?> GetById(long id, bool enableTracking, CancellationToken ct);
     Task<TModel?> GetByGuid(Guid guid, bool enableTracking, CancellationToken ct);

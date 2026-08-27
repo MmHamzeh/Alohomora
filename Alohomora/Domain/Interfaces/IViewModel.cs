@@ -1,12 +1,14 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿using Alohomora.Core.Domain.Enums;
+
+namespace Alohomora.Core.Domain.Interfaces;
 
 
-internal interface IVm
+public interface IVm
 {
 
 }
 
-internal interface IViewModel : IVm
+public interface IViewModel : IVm
 {
 
     internal DateTime CreatedOn { get; set; }
@@ -16,14 +18,14 @@ internal interface IViewModel : IVm
     internal Guid? ModifiedBy { get; set; }
 }
 
-internal interface IEnmVm<T> : IVm where T : Enum
+public interface IEnmVm<T> : IVm where T : Enum
 {
     internal string Title { get; set; }
     internal string TitleEn { get; set; }
     internal string Description { get; set; }
 }
 
-internal interface IFileVm : IVm
+public interface IFileVm : IVm
 {
     internal string FileName { get; set; }
     internal string FileExtension { get; set; }

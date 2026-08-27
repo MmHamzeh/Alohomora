@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Alohomora.Core.Common.Enums;
+using Microsoft.AspNetCore.Authorization;
 
-namespace Alohomora.Attributes;
+namespace Alohomora.Core.Attributes;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public class AlohomoraAuthAttribute : AuthorizeAttribute

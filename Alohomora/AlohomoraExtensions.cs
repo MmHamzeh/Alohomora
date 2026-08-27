@@ -1,17 +1,18 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Alohomora.Core.Services.Contact.ExternalServices;
+using Alohomora.Core.Services.Implementation.Config;
+using Alohomora.Core.Services.Implementation.ExternalServices;
+using Microsoft.AspNetCore.Builder;
 
-namespace Alohomora;
+namespace Alohomora.Core;
 
 public static class AlohomoraExtensions
 {
     public static IServiceCollection AddAlohomora(this IServiceCollection services)
     {
-        Alohomora.DataAccess.Implementation.Config
-            .DataAccessDiHelper
-            .ConfigureServices(services);
+        services.AddSingleton<ITextSanitizerService, TextSanitizerService>();
+        services.AddSingleton<ISmsService, PayamResanService>();
 
-        Alohomora.Services.Implementation.Config
-            .ServicesDiHelper
+        ServicesDiHelper
             .ConfigureServices(services);
 
         return services;

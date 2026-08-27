@@ -1,6 +1,8 @@
-﻿namespace Alohomora.DataAccess.Contract.Repositories;
+﻿using Alohomora.Core.Domain.Models.DbModels;
 
-internal interface IRoleRepository : IRepository<Role, long>
+namespace Alohomora.Core.DataAccess.Contract.Repositories;
+
+public interface IRoleRepository : IRepository<Role, long>
 {
     Task<IList<string>> GetUserRolesName(long userId);
 }

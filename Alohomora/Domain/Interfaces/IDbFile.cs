@@ -1,6 +1,8 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿using Alohomora.Core.Domain.Enums;
 
-internal interface IDbFile : IDbTable<long>
+namespace Alohomora.Core.Domain.Interfaces;
+
+public interface IDbFile : IDbTable<long>
 {
     internal string FileName { get; set; }
     internal string FileExtension { get; set; }

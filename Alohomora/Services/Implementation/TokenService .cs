@@ -1,6 +1,12 @@
-﻿namespace Alohomora.Services.Implementation;
+﻿using Alohomora.Core.DataAccess.Contract;
+using Alohomora.Core.DataAccess.Contract.Repositories;
+using Alohomora.Core.Domain.Models.DbModels;
+using Alohomora.Core.Domain.Models.DtoModels;
+using Alohomora.Core.Services.Contact;
 
-internal class TokenService : ITokenService
+namespace Alohomora.Core.Services.Implementation;
+
+public class TokenService : ITokenService
 {
     #region Fields and Ctor
 

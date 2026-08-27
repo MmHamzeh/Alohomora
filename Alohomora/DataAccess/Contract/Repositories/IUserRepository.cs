@@ -1,6 +1,8 @@
-﻿namespace Alohomora.DataAccess.Contract.Repositories;
+﻿using Alohomora.Core.Domain.Models.DbModels;
 
-internal interface IUserRepository : IRepository<User, long>
+namespace Alohomora.Core.DataAccess.Contract.Repositories;
+
+public interface IUserRepository : IRepository<User, long>
 {
     Task<User?> GetByPhoneNumber(string phoneNumber, bool enableTracking, CancellationToken ct);
     Task<bool> ExistsByPhoneNumber(string phoneNumber, CancellationToken ct);

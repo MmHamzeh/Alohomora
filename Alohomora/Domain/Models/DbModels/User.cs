@@ -1,6 +1,8 @@
-﻿namespace Alohomora.Domain.Models.DbModels;
+﻿using Alohomora.Core.Domain.Enums;
 
-internal class User : IDbTable<long>
+namespace Alohomora.Core.Domain.Models.DbModels;
+
+public class User : IDbTable<long>
 {
     #region IDbTableProperties
 

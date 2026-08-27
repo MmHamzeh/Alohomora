@@ -1,12 +1,12 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿namespace Alohomora.Core.Domain.Interfaces;
 
-internal interface IDbTable
+public interface IDbTable
 {
     internal Guid PublicId { get; set; }
 }
 
 
-internal interface IDbTable<T> : IDbTable
+public interface IDbTable<T> : IDbTable
 {
     internal T Id { get; set; }
 }

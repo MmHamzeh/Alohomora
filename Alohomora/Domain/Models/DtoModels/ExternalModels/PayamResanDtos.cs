@@ -1,14 +1,14 @@
-﻿namespace Alohomora.Domain.Models.DtoModels.ExternalModels;
+﻿namespace Alohomora.Core.Domain.Models.DtoModels.ExternalModels;
 
 
 
-internal abstract class BaseUser
+public abstract class BaseUser
 {
     internal string ApiKey { get; set; }
 }
 
 #region BulkSMS
-internal class SendBulkSMSDto : BaseUser
+public class SendBulkSMSDto : BaseUser
 {
     internal string Text { get; set; }
     internal long Sender { get; set; }
@@ -25,7 +25,7 @@ internal partial class SendBulkRecipient
 
 #region MultipleSMS
 
-internal class SendMultipleSMSDto : BaseUser
+public class SendMultipleSMSDto : BaseUser
 {
     internal SendMultipleRecipient[] Recipients { get; set; }
 }
@@ -41,7 +41,7 @@ internal partial class SendMultipleRecipient
 
 #region MultipleToken
 
-internal class SendMultipleTokenDto : BaseUser
+public class SendMultipleTokenDto : BaseUser
 {
     internal SendMultipleTokenRecipient[] Recipients { get; set; }
     internal string TemplateKey { get; set; }
@@ -57,11 +57,11 @@ internal partial class SendMultipleTokenRecipient
 
 #region GetStatus
 
-internal class GetStatusByIdDto : BaseUser
+public class GetStatusByIdDto : BaseUser
 {
     internal long[] Ids { get; set; }
 }
-internal class GetStatusByUserTraceIdsDto : BaseUser
+public class GetStatusByUserTraceIdsDto : BaseUser
 {
     internal long[] UserTraceIds { get; set; }
 }

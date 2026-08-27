@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.ViewModels;
+﻿namespace Alohomora.Core.Domain.Models.ViewModels;
 
-internal class LoginVm : IVm
+public class LoginVm : IVm
 {
     internal string AccessToken { get; set; }
     internal string RefreshToken { get; set; }

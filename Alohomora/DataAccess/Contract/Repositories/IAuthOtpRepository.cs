@@ -1,6 +1,8 @@
-﻿namespace Alohomora.DataAccess.Contract.Repositories;
+﻿using Alohomora.Core.Domain.Models.DbModels;
 
-internal interface IAuthOtpRepository : IRepository<AuthOtp, long>
+namespace Alohomora.Core.DataAccess.Contract.Repositories;
+
+public interface IAuthOtpRepository : IRepository<AuthOtp, long>
 {
     Task AddAsync(AuthOtp authOtp, CancellationToken ct);
     Task<AuthOtp?> GetValidByPhoneNumberAndCode(string phoneNumber, string code, CancellationToken ct);

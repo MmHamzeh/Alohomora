@@ -1,4 +1,4 @@
-﻿namespace Alohomora.Domain.Models.DtoModels;
+﻿namespace Alohomora.Core.Domain.Models.DtoModels;
 
 public class CreateTokenResult
 {

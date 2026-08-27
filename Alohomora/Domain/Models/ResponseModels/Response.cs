@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.ResponseModels;
+﻿namespace Alohomora.Core.Domain.Models.ResponseModels;
 
-internal interface IResponse
+public interface IResponse
 {
     public string? Message { get; set; }
     public bool HasError { get; set; }
@@ -10,7 +10,7 @@ internal interface IResponse
 
 
 
-internal class Response : IResponse
+public class Response : IResponse
 {
     internal Response()
     {

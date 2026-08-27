@@ -1,11 +1,11 @@
-﻿namespace Alohomora.Domain.Models.ResponseModels;
+﻿namespace Alohomora.Core.Domain.Models.ResponseModels;
 
-internal interface ISingleResponse<TModel> : IResponse where TModel : class, IVm, new()
+public interface ISingleResponse<TModel> : IResponse where TModel : class, IVm, new()
 {
     public TModel Model { get; set; }
 }
 
-internal class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : class, IVm, new()
+public class SingleResponse<TModel> : ISingleResponse<TModel> where TModel : class, IVm, new()
 {
 
     #region Ctor

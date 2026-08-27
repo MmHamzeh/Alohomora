@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.DbModels;
+﻿namespace Alohomora.Core.Domain.Models.DbModels;
 
-internal class AuthOtp : IDbTable<long>
+public class AuthOtp : IDbTable<long>
 {
     #region IDbTableProperties
 

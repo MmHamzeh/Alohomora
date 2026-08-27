@@ -1,11 +1,11 @@
-﻿namespace Alohomora.Domain.Models.ResponseModels;
+﻿namespace Alohomora.Core.Domain.Models.ResponseModels;
 
-internal interface IListResponse<TModel> : IResponse where TModel : class, IVm, new()
+public interface IListResponse<TModel> : IResponse where TModel : class, IVm, new()
 {
     public List<TModel> ModelList { get; set; }
 }
 
-internal class ListResponse<TModel> : IListResponse<TModel> where TModel : class, IVm, new()
+public class ListResponse<TModel> : IListResponse<TModel> where TModel : class, IVm, new()
 {
     #region Ctor
 

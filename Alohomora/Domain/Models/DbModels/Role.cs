@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.DbModels;
+﻿namespace Alohomora.Core.Domain.Models.DbModels;
 
-internal class Role : IDbTable<long>
+public class Role : IDbTable<long>
 {
     #region Ctor
 

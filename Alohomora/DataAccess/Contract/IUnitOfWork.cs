@@ -1,6 +1,8 @@
-﻿namespace Alohomora.DataAccess.Contract;
+﻿using Alohomora.Core.DataAccess.Contract.Repositories;
 
-internal interface IUnitOfWork
+namespace Alohomora.Core.DataAccess.Contract;
+
+public interface IUnitOfWork
 {
     #region Repositories
 

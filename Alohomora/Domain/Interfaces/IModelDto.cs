@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿namespace Alohomora.Core.Domain.Interfaces;
 
-internal abstract class IModelDto : IDto
+public abstract class IModelDto : IDto
 {
 
     internal DateTime? CreatedOn { get; set; }
@@ -10,13 +10,13 @@ internal abstract class IModelDto : IDto
     internal Guid? ModifiedBy { get; set; }
 }
 
-internal abstract class ICreateModelDto : IDto
+public abstract class ICreateModelDto : IDto
 {
     internal DateTime? ModifiedOn { get; set; }
     internal Guid? ModifiedBy { get; set; }
 }
 
-internal abstract class IUpdateModelDto : IDto
+public abstract class IUpdateModelDto : IDto
 {
 
     internal DateTime? ModifiedOn { get; set; }

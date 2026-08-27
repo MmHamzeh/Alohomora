@@ -1,6 +1,9 @@
-﻿namespace Alohomora.Services.Implementation;
+﻿using Alohomora.Core.Common.Configs;
+using Alohomora.Core.Domain.Models.DbModels;
 
-internal class TokenHelper
+namespace Alohomora.Core.Services.Implementation;
+
+public class TokenHelper
 {
     #region Fields and Ctor
 

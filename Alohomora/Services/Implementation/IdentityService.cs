@@ -1,6 +1,18 @@
-﻿namespace Alohomora.Services.Implementation;
+﻿using Alohomora.Core.Common.Configs;
+using Alohomora.Core.Common.Helpers;
+using Alohomora.Core.DataAccess.Contract;
+using Alohomora.Core.DataAccess.Contract.Repositories;
+using Alohomora.Core.Domain.Enums;
+using Alohomora.Core.Domain.Models.DbModels;
+using Alohomora.Core.Domain.Models.DtoModels;
+using Alohomora.Core.Domain.Models.ResponseModels;
+using Alohomora.Core.Domain.Models.ViewModels;
+using Alohomora.Core.Services.Contact;
+using Alohomora.Core.Services.Contact.ExternalServices;
 
-internal class IdentityService : IIdentityService
+namespace Alohomora.Core.Services.Implementation;
+
+public class IdentityService : IIdentityService
 {
     #region Fields and Ctor
 

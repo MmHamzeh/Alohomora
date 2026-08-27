@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Enums;
+﻿namespace Alohomora.Core.Domain.Enums;
 
-internal enum MimeTypeEnm
+public enum MimeTypeEnm
 {
     [Description("نامشخص")]
     Unknown = 0,

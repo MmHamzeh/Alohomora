@@ -1,6 +1,8 @@
-﻿namespace Alohomora.DataAccess.Contract.Repositories;
+﻿using Alohomora.Core.Domain.Models.DbModels;
 
-internal interface IUserRoleRepository : IRepository<UserRole, long>
+namespace Alohomora.Core.DataAccess.Contract.Repositories;
+
+public interface IUserRoleRepository : IRepository<UserRole, long>
 {
 
 }

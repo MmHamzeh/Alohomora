@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.DbModels;
+﻿namespace Alohomora.Core.Domain.Models.DbModels;
 
-internal class UserRole : IDbTable<long>
+public class UserRole : IDbTable<long>
 {
     #region IDbTableProperties
 

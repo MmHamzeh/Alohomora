@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Interfaces;
+﻿namespace Alohomora.Core.Domain.Interfaces;
 
-internal interface IDbEnm<T> : IDbTable<T> where T : Enum
+public interface IDbEnm<T> : IDbTable<T> where T : Enum
 {
     internal string Title { get; set; }
     internal string TitleEn { get; set; }

@@ -1,8 +1,8 @@
-﻿namespace Alohomora.Common.Helpers;
+﻿namespace Alohomora.Core.Common.Helpers;
 
-internal static class EnumHelper
+public static class EnumHelper
 {
-    internal static string GetDescription(this Enum @enum)
+    public static string GetDescription(this Enum @enum)
     {
         try
         {

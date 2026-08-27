@@ -1,10 +1,10 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace Alohomora.Common.Helpers;
+namespace Alohomora.Core.Common.Helpers;
 
-internal static class EmailHelper
+public static class EmailHelper
 {
-    internal static bool IsValidEmail(string email)
+    public static bool IsValidEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
             return false;

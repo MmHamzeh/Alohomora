@@ -1,4 +1,4 @@
-﻿namespace Alohomora.DataAccess.Implementation.Repositories;
+﻿namespace Alohomora.Sql.Repositories;
 
 internal class UserRoleRepository : IUserRoleRepository
 {

@@ -1,4 +1,4 @@
-﻿namespace Alohomora.DataAccess.Implementation;
+﻿namespace Alohomora.Sql;
 
 internal class UnitOfWork : IUnitOfWork, IDisposable
 {

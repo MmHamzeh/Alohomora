@@ -1,4 +1,4 @@
-﻿namespace Alohomora.Services.Contact.ExternalServices;
+﻿namespace Alohomora.Core.Services.Contact.ExternalServices;
 
 
 public interface ITextSanitizerService

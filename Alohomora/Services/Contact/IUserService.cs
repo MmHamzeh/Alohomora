@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Services.Contact;
+﻿namespace Alohomora.Core.Services.Contact;
 
-internal interface IUserService
+public interface IUserService
 {
     Guid CurrentUserId { get; }
 }

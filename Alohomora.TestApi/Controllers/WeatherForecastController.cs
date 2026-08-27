@@ -1,11 +1,12 @@
-using Alohomora.Common.Enums;
+using Alohomora.Core.Attributes;
+using Alohomora.Core.Common.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Alohomora.TestApi.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-[Alohomora.Attributes.AlohomoraAuth(AuthenticationType.AllowAnonymous)]
+[AlohomoraAuth(AuthenticationType.AllowAnonymous)]
 public class WeatherForecastController : ControllerBase
 {
     [HttpGet(Name = "GetWeatherForecast")]
@@ -22,21 +23,21 @@ public class WeatherForecastController : ControllerBase
     }
 
     [HttpGet(Name = "GetWeatherForecast2")]
-    [Alohomora.Attributes.AlohomoraAuth(AuthenticationType.SignedIn)]
+    [AlohomoraAuth(AuthenticationType.SignedIn)]
     public IEnumerable<WeatherForecast> Get2()
     {
         return null;
     }
 
     [HttpGet(Name = "GetWeatherForecast3")]
-    [Alohomora.Attributes.AlohomoraAuth(AuthenticationType.CheckPermissions)]
+    [AlohomoraAuth(AuthenticationType.CheckPermissions)]
     public IEnumerable<WeatherForecast> Get3()
     {
         return null;
     }
 
     [HttpGet(Name = "GetWeatherForecast4")]
-    [Alohomora.Attributes.AlohomoraAuth(roles: ["Admin", "User"])]
+    [AlohomoraAuth(roles: ["Admin", "User"])]
     public IEnumerable<WeatherForecast> Get4()
     {
         return null;

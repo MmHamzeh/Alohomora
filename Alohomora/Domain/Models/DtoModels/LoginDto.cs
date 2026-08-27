@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.DtoModels;
+﻿namespace Alohomora.Core.Domain.Models.DtoModels;
 
-internal class LoginDto : IDto
+public class LoginDto : IDto
 {
     internal string PhoneNumber { get; set; }
     internal bool RememberMe { get; set; }
@@ -9,12 +9,12 @@ internal class LoginDto : IDto
 
 }
 
-internal class LoginPasswordDto : LoginDto
+public class LoginPasswordDto : LoginDto
 {
     internal string Password { get; set; }
 }
 
-internal class LoginOtpDto : LoginDto
+public class LoginOtpDto : LoginDto
 {
     internal string AuthOtpCode { get; set; }
 

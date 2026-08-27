@@ -1,10 +1,11 @@
-﻿using Alohomora.Services.Implementation;
+﻿using Alohomora.Core.Common.Enums;
+using Alohomora.Core.Services.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Net.Http.Headers;
 
-namespace Alohomora.Services.Contact.AuthServices;
+namespace Alohomora.Core.Services.Contact.AuthServices;
 
-internal class AppAuthorizationHandler(TokenHelper tokenHelper) : AuthorizationHandler<AppAuthorizationRequirement>
+public class AppAuthorizationHandler(TokenHelper tokenHelper) : AuthorizationHandler<AppAuthorizationRequirement>
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, AppAuthorizationRequirement requirement)
     {

@@ -1,0 +1,10 @@
+﻿global using Alohomora.Core.Common.Configs;
+global using Alohomora.Core.Common.Helpers;
+global using Alohomora.Core.DataAccess.Contract;
+global using Alohomora.Core.DataAccess.Contract.Repositories;
+global using Alohomora.Core.Domain.Enums;
+global using Alohomora.Core.Domain.Models.DbModels;
+global using Alohomora.Sql.Database;
+global using Alohomora.Sql.Repositories;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.DependencyInjection;

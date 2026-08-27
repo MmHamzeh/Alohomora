@@ -1,6 +1,10 @@
-﻿namespace Alohomora.Services.Contact;
+﻿using Alohomora.Core.Domain.Models.DtoModels;
+using Alohomora.Core.Domain.Models.ResponseModels;
+using Alohomora.Core.Domain.Models.ViewModels;
 
-internal interface IIdentityService
+namespace Alohomora.Core.Services.Contact;
+
+public interface IIdentityService
 {
     Task<ISingleResponse<LoginVm>> LoginPasswordAsync(LoginPasswordDto dto, CancellationToken ct);
 

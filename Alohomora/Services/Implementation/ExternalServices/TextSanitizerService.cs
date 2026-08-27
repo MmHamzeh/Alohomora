@@ -1,6 +1,7 @@
-﻿using Ganss.Xss;
+﻿using Alohomora.Core.Services.Contact.ExternalServices;
+using Ganss.Xss;
 
-namespace Alohomora.Services.Implementation.ExternalServices;
+namespace Alohomora.Core.Services.Implementation.ExternalServices;
 
 public class TextSanitizerService : ITextSanitizerService
 {

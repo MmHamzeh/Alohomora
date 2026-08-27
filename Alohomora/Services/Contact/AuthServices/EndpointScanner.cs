@@ -1,5 +1,7 @@
 ﻿
-namespace Alohomora.Services.Contact.AuthServices;
+using Alohomora.Core.Common.Enums;
+
+namespace Alohomora.Core.Services.Contact.AuthServices;
 
 internal static class EndpointScanner
 {
@@ -11,19 +13,19 @@ internal static class EndpointScanner
 
 }
 
-internal class ControllerDefenition
+public class ControllerDefenition
 {
     public AttributeDefenition AttributeDefenition { get; set; }
     public List<ActionDefenition> ActionDefenitions { get; set; }
 }
 
-internal class ActionDefenition
+public class ActionDefenition
 {
     public AttributeDefenition AttributeDefenition { get; set; }
     public string Route { get; set; }
 }
 
-internal class AttributeDefenition
+public class AttributeDefenition
 {
     public AuthenticationType AuthenticationType { get; set; }
     public string[] Roles { get; set; }

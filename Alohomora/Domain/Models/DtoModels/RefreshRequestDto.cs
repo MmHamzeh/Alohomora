@@ -1,6 +1,6 @@
-﻿namespace Alohomora.Domain.Models.DtoModels;
+﻿namespace Alohomora.Core.Domain.Models.DtoModels;
 
-internal class RefreshRequestDto
+public class RefreshRequestDto
 {
     internal string AccessToken { get; set; }
     internal string RefreshToken { get; set; }

@@ -1,6 +1,4 @@
-﻿using Alohomora.DataAccess.Implementation.Repositories;
-
-namespace Alohomora.DataAccess.Implementation.Config;
+﻿namespace Alohomora.Sql.Config;
 
 internal static class DataAccessDiHelper
 {

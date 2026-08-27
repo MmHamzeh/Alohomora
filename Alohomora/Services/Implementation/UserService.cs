@@ -1,4 +1,6 @@
-﻿namespace Alohomora.Services.Implementation;
+﻿using Alohomora.Core.Services.Contact;
+
+namespace Alohomora.Core.Services.Implementation;
 
 public class UserService : IUserService
 {
