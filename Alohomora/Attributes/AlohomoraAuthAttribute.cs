@@ -7,7 +7,7 @@ namespace Alohomora.Core.Attributes;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public class AlohomoraAuthAttribute : AuthorizeAttribute
 {
-    internal AuthenticationType Type { get; }
+    private AuthenticationType Type { get; }
     private string[]? RoleList { get; }
 
 

@@ -1,9 +1,4 @@
-﻿using Alohomora.Core.Common.Helpers;
-using Alohomora.Core.Domain.Models.DtoModels.ExternalModels;
-using Alohomora.Core.Domain.Models.ViewModels.ExternalModels;
-using Alohomora.Core.Services.Contact.ExternalServices;
-
-namespace Alohomora.Core.Services.Implementation.ExternalServices;
+﻿namespace Alohomora.PayamResan.Services;
 
 public class PayamResanService : ISmsService
 {

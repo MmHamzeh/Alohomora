@@ -1,14 +1,54 @@
-﻿namespace Alohomora.Core.Common.Helpers;
+﻿using System.Text.Encodings.Web;
+using System.Text.Json.Serialization;
 
-internal static class JsonHelper
+namespace Alohomora.Core.Common.Helpers;
+
+public static class JsonHelper
 {
-    internal static T? Deserialize<T>(string json)
+    private static JsonSerializerOptions? _options;
+
+    public static JsonSerializerOptions GetJsonSerializerOptions()
     {
-        return System.Text.Json.JsonSerializer.Deserialize<T>(json);
+        _options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            // Performance & Memory
+            DefaultBufferSize = 1024 * 4, // 4 KB buffer pool tuning
+
+            // Payload Optimization
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = false, // Keep compact in production
+
+            // Flexibility & Compatibility
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString,
+
+            // Character Handling (Prevents unnecessary Unicode escaping for non-Latin characters)
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+
+            // Reference Handling (Prevent cyclic dependency exceptions in complex graphs)
+            ReferenceHandler = ReferenceHandler.IgnoreCycles
+        };
+
+        // Enums as strings globally
+        _options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+
+        // Make immutable for thread safety and internal caching optimization
+        _options.MakeReadOnly();
+
+        return _options;
     }
 
-    internal static string Serialize<T>(T obj)
+    public static T? Deserialize<T>(string json)
     {
-        return System.Text.Json.JsonSerializer.Serialize(obj);
+        return JsonSerializer.Deserialize<T>(json, GetJsonSerializerOptions());
+    }
+
+    public static string Serialize<T>(T obj)
+    {
+        return JsonSerializer.Serialize(obj, GetJsonSerializerOptions());
     }
 }

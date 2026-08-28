@@ -4,12 +4,13 @@ namespace Alohomora.Core.Common.Helpers;
 
 public static class EmailHelper
 {
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static bool IsValidEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
             return false;
 
-        const string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-        return Regex.IsMatch(email, pattern, RegexOptions.IgnoreCase);
+        return EmailRegex.IsMatch(email);
     }
 }

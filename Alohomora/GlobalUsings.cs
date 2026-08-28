@@ -6,7 +6,6 @@ global using Microsoft.AspNetCore.Identity;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.IdentityModel.Tokens;
 global using Microsoft.Extensions.Options;
-global using RestSharp;
 global using System;
 global using System.Collections.Generic;
 global using System.ComponentModel;

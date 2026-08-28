@@ -4,7 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationIcon>Resources\images\Alohomora_64.ico</ApplicationIcon>
+    <PackageIcon>Alohomora_128.png</PackageIcon>
+    <RepositoryUrl>https://github.com/MmHamzeh/Alohomora</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\images\Alohomora_64.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MD.PersianDateTime.Standard" Version="2.6.0" />
@@ -23,15 +31,25 @@
       </PackageReference>
 
     <PackageReference Include="EasyCaching.Core" Version="1.9.2" />
-    <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.1039" />
     <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.12" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.12" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.12" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
-    <PackageReference Include="RestSharp" Version="114.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Resources\images\Alohomora_128.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Domain\Models\DtoModels\ExternalModels\" />
   </ItemGroup>
 
 </Project>

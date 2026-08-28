@@ -19,7 +19,6 @@ public static class AlohomoraExtensions
         services.AddHttpContextAccessor();
 
         services.AddSingleton<ITextSanitizerService, TextSanitizerService>();
-        services.AddSingleton<ISmsService, PayamResanService>();
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 

@@ -9,6 +9,8 @@ public static class ApplicationSetting
     public const bool IsDebugMode = true;
 #endif
 
+
+
     //TODO: Get these from appsettings.json
     public const string DomainName = "domain.ir";
     public const string ApplicationName = "ApplicationName";

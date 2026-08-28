@@ -18,7 +18,7 @@ public enum UserStatusEnm
     /// غیر فعال
     /// </summary>
     [Description("غیر فعال")]
-    Deactive = 2,
+    DeActive = 2,
 
     /// <summary>
     /// قفل شده

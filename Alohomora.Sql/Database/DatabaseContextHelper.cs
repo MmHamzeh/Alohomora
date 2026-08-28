@@ -72,10 +72,10 @@ internal abstract class DatabaseContextHelper
             },
             new() {
                 PublicId = Guid.Parse("BE6DAE57-0198-4C31-A492-2EFC5C017524"),
-                Id = UserStatusEnm.Deactive,
+                Id = UserStatusEnm.DeActive,
                 Title = "غیر فعال",
-                TitleEn = UserStatusEnm.Deactive.ToString(),
-                Description = UserStatusEnm.Deactive.GetDescription()
+                TitleEn = UserStatusEnm.DeActive.ToString(),
+                Description = UserStatusEnm.DeActive.GetDescription()
             },
             new() {
                 PublicId = Guid.Parse("DEEA2A48-4C8B-4026-8454-158BC2F0C261"),

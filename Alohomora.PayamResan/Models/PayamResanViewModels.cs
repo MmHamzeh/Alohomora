@@ -1,4 +1,4 @@
-﻿namespace Alohomora.Core.Domain.Models.ViewModels.ExternalModels;
+﻿namespace Alohomora.PayamResan.Models;
 
 public class SMSOutputGenericModel<T>
 {

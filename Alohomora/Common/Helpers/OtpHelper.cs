@@ -4,23 +4,16 @@ internal static class OtpHelper
 {
     #region Fields and Ctor
 
-    private static readonly Random _rand;
-
-    static OtpHelper()
-    {
-        _rand = new Random();
-    }
+    private const int OtpMinimum = 100_000;
+    private const int OtpMaximumExclusive = 1_000_000;
 
     #endregion
 
-    /// <summary>
-    /// Generates a random 6-digit number
-    /// </summary>
-    /// <returns></returns>
     internal static string GenerateAuthOtp()
     {
-        var otp = _rand.Next(100_000, 999_999);
-        return otp.ToString();
+        return RandomNumberGenerator
+            .GetInt32(OtpMinimum, OtpMaximumExclusive)
+            .ToString("D6");
     }
 
 }
