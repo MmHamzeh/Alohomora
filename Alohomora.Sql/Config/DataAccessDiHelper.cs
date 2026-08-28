@@ -6,13 +6,11 @@ internal static class DataAccessDiHelper
 {
     internal static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+        var connectionString = configuration.GetConnectionString("AuthDbConnection") 
             ?? DatabaseContextHelper.ConnectionString;
 
         //DatabaseContext
         services.AddDbContextPool<DatabaseContext>(opt =>
-            opt.UseSqlServer(connectionString));
-        services.AddDbContextPool<DatabaseContextRead>(opt =>
             opt.UseSqlServer(connectionString));
 
 

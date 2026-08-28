@@ -5,12 +5,12 @@ internal class RefreshTokenRepository : IRefreshTokenRepository
     #region Fields and Ctor
 
     private readonly DatabaseContext _dbContext;
-    private readonly DatabaseContextRead _dbContextRead;
+    
 
-    internal RefreshTokenRepository(DatabaseContext? dbContext = null, DatabaseContextRead? dbContextRead = null)
+    internal RefreshTokenRepository(DatabaseContext? dbContext = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _dbContextRead = dbContextRead ?? throw new ArgumentNullException(nameof(dbContextRead));
+        
     }
 
     #endregion
@@ -19,7 +19,7 @@ internal class RefreshTokenRepository : IRefreshTokenRepository
     {
         var refreshTokens = enableTracking
             ? _dbContext.RefreshTokens
-            : _dbContextRead.RefreshTokens;
+            : _dbContext.RefreshTokens.AsNoTracking();
 
         return refreshTokens.FirstOrDefaultAsync(e =>
             e.User.PublicId == userPublicId && e.IsRevoked == false && e.Expires > DateTime.Now, ct);
@@ -42,7 +42,7 @@ internal class RefreshTokenRepository : IRefreshTokenRepository
     {
         var refreshTokens = enableTracking
             ? _dbContext.RefreshTokens
-            : _dbContextRead.RefreshTokens;
+            : _dbContext.RefreshTokens.AsNoTracking();
 
         return await refreshTokens.FirstOrDefaultAsync(e => e.Token == token && e.AccessTokenId == accessTokenId);
 

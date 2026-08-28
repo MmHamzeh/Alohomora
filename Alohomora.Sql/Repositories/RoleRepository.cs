@@ -6,12 +6,10 @@ internal class RoleRepository : IRoleRepository
     #region Fields and Ctor
 
     private readonly DatabaseContext _dbContext;
-    private readonly DatabaseContextRead _authDatabaseContextRead;
 
-    internal RoleRepository(DatabaseContext? dbContext = null, DatabaseContextRead? authDataBaseContextRead = null)
+    internal RoleRepository(DatabaseContext? dbContext = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _authDatabaseContextRead = authDataBaseContextRead ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
     #endregion

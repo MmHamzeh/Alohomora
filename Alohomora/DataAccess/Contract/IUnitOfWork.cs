@@ -7,11 +7,11 @@ public interface IUnitOfWork
     #region Repositories
 
 
-    internal IRefreshTokenRepository RefreshTokenRepository { get; }
-    internal IAuthOtpRepository AuthOtpRepository { get; }
-    internal IUserRepository UserRepository { get; }
-    internal IRoleRepository RoleRepository { get; }
-    internal IUserRoleRepository UserRoleRepository { get; }
+    IRefreshTokenRepository RefreshTokenRepository { get; }
+    IAuthOtpRepository AuthOtpRepository { get; }
+    IUserRepository UserRepository { get; }
+    IRoleRepository RoleRepository { get; }
+    IUserRoleRepository UserRoleRepository { get; }
 
 
 

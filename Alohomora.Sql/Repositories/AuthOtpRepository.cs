@@ -5,12 +5,10 @@ internal class AuthOtpRepository : IAuthOtpRepository
     #region Fields and Ctor
 
     private readonly DatabaseContext _dbContext;
-    private readonly DatabaseContextRead _dbContextRead;
 
-    internal AuthOtpRepository(DatabaseContext? dbContext = null, DatabaseContextRead? dbContextRead = null)
+    internal AuthOtpRepository(DatabaseContext? dbContext = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _dbContextRead = dbContextRead ?? throw new ArgumentNullException(nameof(dbContextRead));
     }
 
     #endregion

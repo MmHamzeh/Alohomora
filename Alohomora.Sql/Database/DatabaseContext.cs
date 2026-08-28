@@ -53,16 +53,3 @@ public class DatabaseContext : DbContext
     }
 
 }
-
-internal sealed class DatabaseContextRead : DatabaseContext
-{
-    #region Ctor
-
-    internal DatabaseContextRead(DbContextOptions<DatabaseContextRead> options)
-    {
-        ChangeTracker.AutoDetectChangesEnabled = false;
-        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-    }
-
-    #endregion
-}

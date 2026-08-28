@@ -6,7 +6,7 @@ internal class UserRoleRepository : IUserRoleRepository
 
     private readonly DatabaseContext _dbContext;
 
-    internal UserRoleRepository(DatabaseContext? dbContext = null, DatabaseContextRead? authDataBaseContextRead = null)
+    internal UserRoleRepository(DatabaseContext? dbContext = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
