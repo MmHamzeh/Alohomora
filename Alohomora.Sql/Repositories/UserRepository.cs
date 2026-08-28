@@ -5,12 +5,10 @@ internal class UserRepository : IUserRepository
     #region Fields and Ctor
 
     private readonly DatabaseContext _dbContext;
-    private readonly DatabaseContextRead _dbContextRead;
 
-    internal UserRepository(DatabaseContext? dbContext = null, DatabaseContextRead? dbContextRead = null)
+    internal UserRepository(DatabaseContext? dbContext = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _dbContextRead = dbContextRead ?? throw new ArgumentNullException(nameof(dbContextRead));
     }
 
     #endregion
@@ -30,26 +28,35 @@ internal class UserRepository : IUserRepository
     {
         var users = enableTracking
             ? _dbContext.Users
-            : _dbContextRead.Users;
+            : _dbContext.Users.AsNoTracking();
 
         return await users.FirstOrDefaultAsync(e => e.PhoneNumber == phoneNumber, ct);
     }
 
-    public async Task<User?> GetByPublicId(Guid userPublicId, bool enableTracking)
+    public async Task<User?> GetByPublicId(Guid userPublicId, bool enableTracking, CancellationToken ct)
     {
         var users = enableTracking
             ? _dbContext.Users
-            : _dbContextRead.Users;
+            : _dbContext.Users.AsNoTracking();
 
-        return await users.FirstOrDefaultAsync(e => e.PublicId == userPublicId);
+        return await users.FirstOrDefaultAsync(e => e.PublicId == userPublicId, ct);
     }
 
-    public async Task<User?> GetById(long userId, bool enableTracking)
+    public async Task<User?> GetByIdAsync(long userId, bool enableTracking, CancellationToken ct)
     {
         var users = enableTracking
             ? _dbContext.Users
-            : _dbContextRead.Users;
+            : _dbContext.Users.AsNoTracking();
 
-        return await users.FindAsync(userId);
+        return await users.FirstOrDefaultAsync(e => e.Id == userId, ct);
+    }
+
+    public async Task<User?> GetByIdAsync(Guid userPublicId, bool enableTracking, CancellationToken ct)
+    {
+        var users = enableTracking
+            ? _dbContext.Users
+            : _dbContext.Users.AsNoTracking();
+
+        return await users.FirstOrDefaultAsync(e => e.PublicId == userPublicId, ct);
     }
 }

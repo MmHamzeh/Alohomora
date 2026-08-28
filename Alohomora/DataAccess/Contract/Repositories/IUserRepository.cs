@@ -7,7 +7,6 @@ public interface IUserRepository : IRepository<User, long>
     Task<User?> GetByPhoneNumber(string phoneNumber, bool enableTracking, CancellationToken ct);
     Task<bool> ExistsByPhoneNumber(string phoneNumber, CancellationToken ct);
     Task AddAsync(User user, CancellationToken ct);
-    Task<User?> GetByPublicId(Guid userPublicId, bool enableTracking);
-    Task<User?> GetById(long userId, bool enableTracking);
-    Task<User?> GetByIdAsync(Guid userPublicId, CancellationToken ct);
+    Task<User?> GetByIdAsync(long userId, bool enableTracking, CancellationToken ct);
+    Task<User?> GetByIdAsync(Guid userPublicId, bool enableTracking, CancellationToken ct);
 }

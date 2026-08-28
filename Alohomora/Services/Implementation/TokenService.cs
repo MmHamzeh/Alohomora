@@ -49,7 +49,7 @@ public class TokenService : ITokenService
         };
     }
 
-    public async Task<CreateTokenResult> RefreshTokensAsync(string accessToken, string refreshToken)
+    public async Task<CreateTokenResult> RefreshTokensAsync(string accessToken, string refreshToken, CancellationToken ct)
     {
         var accessTokenId = _tokenHelper.GetAccessTokenId(accessToken);
 
@@ -63,7 +63,7 @@ public class TokenService : ITokenService
         oldRefreshToken.IsRevoked = true;
         await _unitOfWork.SaveChanges();
 
-        var user = await _userRepository.GetById(oldRefreshToken.UserId, enableTracking: false);
+        var user = await _userRepository.GetByIdAsync(oldRefreshToken.UserId, enableTracking: false, ct);
 
         if (user is null)
             throw new SecurityTokenException("user is null");

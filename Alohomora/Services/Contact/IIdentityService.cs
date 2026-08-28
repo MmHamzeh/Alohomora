@@ -15,7 +15,7 @@ public interface IIdentityService
     
     Task<Response> LogOutAsync();
     
-    Task<ISingleResponse<LoginVm>> RefreshToken(RefreshRequestDto dto);
+    Task<ISingleResponse<LoginVm>> RefreshToken(RefreshRequestDto dto, CancellationToken ct);
 
     // User Registration
     Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct);

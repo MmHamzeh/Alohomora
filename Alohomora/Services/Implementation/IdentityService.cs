@@ -148,7 +148,7 @@ public class IdentityService : IIdentityService
             // Create a new OTP entry
             authOtp = new AuthOtp
             {
-                PublicId = Guid.NewGuid(),
+                PublicId = Guid.CreateVersion7(),
                 Code = otp,
                 Expires = DateTime.Now.AddMinutes(5),
                 IsUsed = false,
@@ -261,9 +261,9 @@ public class IdentityService : IIdentityService
         return new Response();
     }
 
-    public async Task<ISingleResponse<LoginVm>> RefreshToken(RefreshRequestDto dto)
+    public async Task<ISingleResponse<LoginVm>> RefreshToken(RefreshRequestDto dto, CancellationToken ct)
     {
-        var tokens = await _tokenService.RefreshTokensAsync(dto.AccessToken, dto.RefreshToken);
+        var tokens = await _tokenService.RefreshTokensAsync(dto.AccessToken, dto.RefreshToken, ct);
         return new SingleResponse<LoginVm>(new LoginVm()
         {
             AccessToken = tokens.AccessToken,
@@ -300,7 +300,7 @@ public class IdentityService : IIdentityService
             UserStatusId = UserStatusEnm.Active,
             LockoutEnabled = true,
             AccessFailedCount = 0,
-            PublicId = Guid.NewGuid(),
+            PublicId = Guid.CreateVersion7(),
             CreatedOn = DateTime.Now,
             TwoFactorEnabled = false
         };
@@ -358,7 +358,7 @@ public class IdentityService : IIdentityService
             var otp = OtpHelper.GenerateAuthOtp();
             authOtp = new AuthOtp
             {
-                PublicId = Guid.NewGuid(),
+                PublicId = Guid.CreateVersion7(),
                 Code = otp,
                 Expires = DateTime.Now.AddMinutes(5),
                 IsUsed = false,
@@ -435,15 +435,14 @@ public class IdentityService : IIdentityService
             return new Response("Role Persian name is required");
 
         // Check if role already exists
-        var existingRole = await _roleRepository.GetAll()
-            .FirstOrDefaultAsync(r => r.Name == dto.Name, ct);
+        var roleExists = await _roleRepository.ExistsByName(dto.Name, ct);
 
-        if (existingRole is not null)
+        if (roleExists)
             return new Response("Role with this name already exists");
 
         var role = new Role
         {
-            PublicId = Guid.NewGuid(),
+            PublicId = Guid.CreateVersion7(),
             Name = dto.Name,
             FaName = dto.FaName,
             Description = dto.Description ?? string.Empty,
@@ -465,13 +464,12 @@ public class IdentityService : IIdentityService
             return new Response("Role name is required");
 
         // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(dto.UserId, ct);
+        var user = await _userRepository.GetByIdAsync(dto.UserId, enableTracking: false, ct);
         if (user is null)
             return new Response("User not found");
 
         // Find role by name
-        var role = await _roleRepository.GetAll()
-            .FirstOrDefaultAsync(r => r.Name == dto.RoleName, ct);
+        var role = await _roleRepository.GetByName(dto.RoleName, enableTracking: false, ct);
         
         if (role is null)
             return new Response("Role not found");
@@ -485,7 +483,7 @@ public class IdentityService : IIdentityService
         // Assign role to user
         var userRole = new UserRole
         {
-            PublicId = Guid.NewGuid(),
+            PublicId = Guid.CreateVersion7(),
             UserId = user.Id,
             RoleId = role.Id,
             CreatedOn = DateTime.Now
@@ -506,20 +504,18 @@ public class IdentityService : IIdentityService
             return new Response("Role name is required");
 
         // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(dto.UserId, ct);
+        var user = await _userRepository.GetByIdAsync(dto.UserId, enableTracking: false, ct);
         if (user is null)
             return new Response("User not found");
 
         // Find role by name
-        var role = await _roleRepository.GetAll()
-            .FirstOrDefaultAsync(r => r.Name == dto.RoleName, ct);
+        var role = await _roleRepository.GetByName(dto.RoleName, enableTracking: false, ct);
         
         if (role is null)
             return new Response("Role not found");
 
         // Find user-role relationship
-        var userRole = await _userRoleRepository.GetAll()
-            .FirstOrDefaultAsync(ur => ur.UserId == user.Id && ur.RoleId == role.Id, ct);
+        var userRole = await _userRoleRepository.GetByUserIdRoleId(user.Id, role.Id, enableTracking: true, ct);
 
         if (userRole is null)
             return new Response("User does not have this role");
@@ -537,7 +533,7 @@ public class IdentityService : IIdentityService
             return new SingleResponse<List<string>>("User ID is required");
 
         // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(u => u.PublicId == userId, ct);
+        var user = await _userRepository.GetByIdAsync(userId, enableTracking: false, ct);
         if (user is null)
             return new SingleResponse<List<string>>("User not found");
 
@@ -635,7 +631,7 @@ public class IdentityService : IIdentityService
             PhoneNumberConfirmed = false,
             LockoutEnabled = true,
             AccessFailedCount = 0,
-            PublicId = Guid.NewGuid(),
+            PublicId = Guid.CreateVersion7(),
             UserName = phoneNumber,
             CreatedOn = DateTime.Now
         };

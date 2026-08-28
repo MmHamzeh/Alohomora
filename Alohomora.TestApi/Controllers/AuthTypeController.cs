@@ -70,9 +70,9 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("refresh-token")]
     [AllowAnonymous]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshRequestDto dto)
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshRequestDto dto, CancellationToken ct)
     {
-        var result = await _identityService.RefreshToken(dto);
+        var result = await _identityService.RefreshToken(dto, ct);
         
         if (!result.Success)
             return BadRequest(result);
