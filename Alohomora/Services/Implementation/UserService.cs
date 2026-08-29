@@ -11,14 +11,16 @@ public class UserService : IUserService
     #region Fields and Ctor
 
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UserService"/> class
     /// </summary>
     /// <param name="httpContextAccessor">The HTTP context accessor</param>
-    public UserService(IHttpContextAccessor httpContextAccessor)
+    public UserService(IHttpContextAccessor httpContextAccessor, TimeProvider timeProvider)
     {
         _httpContextAccessor = httpContextAccessor;
+        _timeProvider = timeProvider;
     }
 
     #endregion

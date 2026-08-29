@@ -16,11 +16,13 @@ public class TokenService : ITokenService
     private readonly IRoleRepository _roleRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUserRepository _userRepository;
+    private readonly TimeProvider _timeProvider;
 
-    internal TokenService(TokenHelper tokenHelper, IUnitOfWork unitOfWork)
+    internal TokenService(TokenHelper tokenHelper, IUnitOfWork unitOfWork, TimeProvider timeProvider)
     {
         _tokenHelper = tokenHelper;
         _unitOfWork = unitOfWork;
+        _timeProvider = timeProvider;
 
         _roleRepository = unitOfWork.RoleRepository;
         _refreshTokenRepository = unitOfWork.RefreshTokenRepository;
@@ -56,7 +58,7 @@ public class TokenService : ITokenService
         // اعتبارسنجی توکن بازنشانی
         var oldRefreshToken = await _refreshTokenRepository.GetByTokenAccessTokenId(refreshToken, accessTokenId.Value, enableTracking: true);
 
-        if (oldRefreshToken == null || oldRefreshToken.IsRevoked || oldRefreshToken.Expires < DateTime.Now)
+        if (oldRefreshToken == null || oldRefreshToken.IsRevoked || oldRefreshToken.Expires < _timeProvider.GetUtcNow())
             throw new SecurityTokenException("Invalid refresh token");
 
         // علامت‌گذاری به عنوان Revoked

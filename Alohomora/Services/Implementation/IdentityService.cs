@@ -29,9 +29,9 @@ internal class IdentityService : IIdentityService
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRoleRepository _userRoleRepository;
     private readonly IPasswordHasher<User> _passwordHasher;
+    private readonly TimeProvider _timeProvider;
 
-
-    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper)
+    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, TimeProvider timeProvider)
     {
         _tokenService = tokenService;
         _httpContextAccessor = httpContextAccessor;
@@ -45,6 +45,7 @@ internal class IdentityService : IIdentityService
         _userRepository = unitOfWork.UserRepository;
         _roleRepository = unitOfWork.RoleRepository;
         _userRoleRepository = unitOfWork.UserRoleRepository;
+        _timeProvider = timeProvider;
 
         _passwordHasher = new PasswordHasher<User>();
 
@@ -70,10 +71,10 @@ internal class IdentityService : IIdentityService
         if (user is null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
 
-        if (user.LockoutEnabled && user.LockoutEnd > DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
             return await FailedPasswordLoginAttempt(user);
 
-        if (user.LockoutEnabled && user.LockoutEnd <= DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd <= _timeProvider.GetUtcNow())
         {
             user.LockoutEnabled = false;
             userHasChanged = true;
@@ -139,7 +140,7 @@ internal class IdentityService : IIdentityService
         if (authOtp is not null)
         {
             // If an OTP already exists for this phone number, we can update it
-            authOtp.Expires = DateTime.Now.AddMinutes(5);
+            authOtp.Expires = _timeProvider.GetUtcNow().AddMinutes(5);
         }
         else
         {
@@ -150,7 +151,7 @@ internal class IdentityService : IIdentityService
             {
                 PublicId = Guid.CreateVersion7(),
                 Code = otp,
-                Expires = DateTime.Now.AddMinutes(5),
+                Expires = _timeProvider.GetUtcNow().AddMinutes(5),
                 IsUsed = false,
                 UserId = user.Id,
                 UserPhoneNumber = user.PhoneNumber,
@@ -192,10 +193,10 @@ internal class IdentityService : IIdentityService
         if (user is null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidOtpLoginAttempt);
 
-        if (user.LockoutEnabled && user.LockoutEnd > DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
             return await FailedOtpLoginAttempt(user);
 
-        if (user.LockoutEnabled && user.LockoutEnd <= DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd <= _timeProvider.GetUtcNow())
         {
             user.LockoutEnabled = false;
             user.LockoutEnd = null;
@@ -212,7 +213,7 @@ internal class IdentityService : IIdentityService
         if (otp.IsUsed)
             return await FailedOtpLoginAttempt(user);
 
-        if (otp.Expires < DateTime.Now)
+        if (otp.Expires < _timeProvider.GetUtcNow())
             return await FailedOtpLoginAttempt(user);
 
         otp.IsUsed = true;
@@ -301,7 +302,7 @@ internal class IdentityService : IIdentityService
             LockoutEnabled = true,
             AccessFailedCount = 0,
             PublicId = Guid.CreateVersion7(),
-            CreatedOn = DateTime.Now,
+            CreatedOn = _timeProvider.GetUtcNow();,
             TwoFactorEnabled = false
         };
 
@@ -349,7 +350,7 @@ internal class IdentityService : IIdentityService
         {
             // Update existing OTP
             authOtp.Code = OtpHelper.GenerateAuthOtp();
-            authOtp.Expires = DateTime.Now.AddMinutes(5);
+            authOtp.Expires = _timeProvider.GetUtcNow().AddMinutes(5);
             authOtp.IsUsed = false;
         }
         else
@@ -360,7 +361,7 @@ internal class IdentityService : IIdentityService
             {
                 PublicId = Guid.CreateVersion7(),
                 Code = otp,
-                Expires = DateTime.Now.AddMinutes(5),
+                Expires = _timeProvider.GetUtcNow().AddMinutes(5),
                 IsUsed = false,
                 UserId = user.Id,
                 UserPhoneNumber = user.PhoneNumber,
@@ -405,7 +406,7 @@ internal class IdentityService : IIdentityService
         // Validate OTP
         var otp = await _authOtpRepository.GetValidByPhoneNumberAndCode(normalizePhoneNumber, dto.OtpCode, ct);
 
-        if (otp is null || otp.IsUsed || otp.Expires < DateTime.Now)
+        if (otp is null || otp.IsUsed || otp.Expires < _timeProvider.GetUtcNow())
             return new Response("Invalid or expired OTP code");
 
         // Mark OTP as used
@@ -446,7 +447,7 @@ internal class IdentityService : IIdentityService
             Name = dto.Name,
             FaName = dto.FaName,
             Description = dto.Description ?? string.Empty,
-            CreatedOn = DateTime.Now
+            CreatedOn = _timeProvider.GetUtcNow();
         };
 
         await _roleRepository.AddAsync(role, ct);
@@ -486,7 +487,7 @@ internal class IdentityService : IIdentityService
             PublicId = Guid.CreateVersion7(),
             UserId = user.Id,
             RoleId = role.Id,
-            CreatedOn = DateTime.Now
+            CreatedOn = _timeProvider.GetUtcNow();
         };
 
         await _userRoleRepository.AddAsync(userRole, ct);
@@ -567,9 +568,9 @@ internal class IdentityService : IIdentityService
 
             user.LockoutEnd = user.AccessFailedCount switch
             {
-                >= 5 and < 10 => DateTime.Now.AddMinutes(15),
-                >= 10 and < 15 => DateTime.Now.AddMinutes(60),
-                >= 15 => DateTime.Now.AddDays(1),
+                >= 5 and < 10 => _timeProvider.GetUtcNow().AddMinutes(15),
+                >= 10 and < 15 => _timeProvider.GetUtcNow().AddMinutes(60),
+                >= 15 => _timeProvider.GetUtcNow().AddDays(1),
                 _ => user.LockoutEnd
             };
 
@@ -578,8 +579,8 @@ internal class IdentityService : IIdentityService
 
         string errorMessage;
         string timeToDisableLockoutMessage;
-        var lockoutTotalMinutes = (user.LockoutEnd! - DateTime.Now).Value.TotalMinutes;
-        var lockoutTotalHours = (user.LockoutEnd! - DateTime.Now).Value.TotalHours;
+        var lockoutTotalMinutes = (user.LockoutEnd! - _timeProvider.GetUtcNow()).Value.TotalMinutes;
+        var lockoutTotalHours = (user.LockoutEnd! - _timeProvider.GetUtcNow()).Value.TotalHours;
 
         if (lockoutTotalMinutes < 60)
             timeToDisableLockoutMessage = lockoutTotalMinutes + 1 + " دقیقه،";
@@ -593,7 +594,7 @@ internal class IdentityService : IIdentityService
         }
         else
         {
-            var lockoutTotalDays = (user.LockoutEnd! - DateTime.Now).Value.TotalDays;
+            var lockoutTotalDays = (user.LockoutEnd! - _timeProvider.GetUtcNow()).Value.TotalDays;
 
 
             if (lockoutTotalHours % 24 == 0 && lockoutTotalMinutes % (24 * 60) == 0)
@@ -607,7 +608,7 @@ internal class IdentityService : IIdentityService
         }
 
 
-        if (user.LockoutEnabled && user.LockoutEnd > DateTime.Now)
+        if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
             errorMessage = "حساب کاربری شما قفل شده است. لطفا بعد از " + timeToDisableLockoutMessage + " مجددا تلاش کنید";
         //else if (user.UserStatusId != UserStatusEnm.Active)
         //    errorMessage = "حساب شما ";
@@ -633,7 +634,7 @@ internal class IdentityService : IIdentityService
             AccessFailedCount = 0,
             PublicId = Guid.CreateVersion7(),
             UserName = phoneNumber,
-            CreatedOn = DateTime.Now
+            CreatedOn = _timeProvider.GetUtcNow();
         };
         await _userRepository.AddAsync(user, ct);
         await _unitOfWork.SaveChanges();
@@ -643,7 +644,7 @@ internal class IdentityService : IIdentityService
     private async Task<bool> SendOtpSms(string phoneNumber, string otp)
     {
         var message = $"{CommonResource.ApplicationName}\n" +
-                      string.Format(IdentityResource.OtpMessage, otp, otp, DateTime.Now.ToPersianDateTime().ToShortDateString(), DateTime.Now.ToPersianDateTime().ToLongTimeString());
+                      string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().ToPersianDateTime().ToLongTimeString());
 
         return await _messageService.SendMessageAsync(phoneNumber, message);
     }

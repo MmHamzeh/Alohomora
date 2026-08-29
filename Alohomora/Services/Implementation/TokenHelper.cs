@@ -22,15 +22,17 @@ public class TokenHelper : IDisposable
 
     private readonly string _privateKeyFilePath;
     private readonly string _publicKeyFilePath;
+    private readonly TimeProvider _timeProvider;
 
     private TokenValidationParameters? _tokenValidationParameters = null;
 
-    public TokenHelper(IOptions<JwtSettings> options)
+    public TokenHelper(IOptions<JwtSettings> options, TimeProvider timeProvider)
     {
         _settings = options.Value;
         useRsa = _settings.UseRsa;
         _issuer = _settings.Issuer;
         _audience = _settings.Audience;
+        _timeProvider = timeProvider;
 
         TokenHandler = new();
 
@@ -126,7 +128,7 @@ public class TokenHelper : IDisposable
         return new RefreshToken
         {
             Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-            Expires = DateTime.UtcNow.AddDays(rememberMe ? 30 : 1),
+            Expires = _timeProvider.GetUtcNow().AddDays(rememberMe ? 30 : 1),
             UserId = userId,
             IsRevoked = false,
             RememberMe = rememberMe,
@@ -261,7 +263,7 @@ public class TokenHelper : IDisposable
             {
                 new (JwtRegisteredClaimNames.Sub, userPublicId.ToString()),
                 new (JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
-                new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                new (JwtRegisteredClaimNames.Iat, _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
                 new (JwtRegisteredClaimNames.Iss, _issuer)
             };
 
@@ -277,7 +279,7 @@ public class TokenHelper : IDisposable
             Issuer = _issuer,
             Audience = _audience,
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpirationMinutes),
+            Expires = _timeProvider.GetUtcNow().AddMinutes(_settings.AccessTokenExpirationMinutes),
             SigningCredentials = credentials
         };
     }
