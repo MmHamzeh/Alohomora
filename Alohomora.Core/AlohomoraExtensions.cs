@@ -82,6 +82,26 @@ public static class AlohomoraExtensions
         return services;
     }
 
+    private static IServiceCollection AddEasyCaching(IServiceCollection services, IConfiguration configuration)
+    {
+        //TODO: get this data from configuration
+        var redisServerAddress = EasyCachingConfigs.AccessTokenIdStoreHost;
+        var redisServerPort = EasyCachingConfigs.AccessTokenIdStorePort;
+
+        var accessTokenIdStoreName = EasyCachingConfigs.AccessTokenIdStoreName;
+
+        services.AddEasyCaching(options => 
+        {
+            options.UseInMemory(AccessTokenIdStoreName);
+
+            // options.UseRedis(config => 
+            // {
+            //     config.DBConfig.Endpoints.Add(new ServerEndPoint(redisServerAddress, redisServerPort));
+            // }, AccessTokenIdStoreName)
+            // .WithMessagePack();            
+        });    
+    }
+
     public static IApplicationBuilder UseAlohomora(this IApplicationBuilder app)
     {
         app.UseAuthentication();

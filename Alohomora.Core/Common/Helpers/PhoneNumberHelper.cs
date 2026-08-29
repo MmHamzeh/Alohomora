@@ -7,7 +7,7 @@ public static class PhoneNumberHelper
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
 
-        // حذف فاصله‌ها و بقیه کارکتر های غیر عددی
+        // حذف فاصله‌ها و بقیه کارکتر های غیر عددی احتمالی
         input = input
             .Replace(" ", "")
             .Replace("(", "")
@@ -20,12 +20,16 @@ public static class PhoneNumberHelper
         if (input.StartsWith("+98"))
             input = "0" + input[3..];
 
+        // تبدیل 98 به 0
+        else if (input.StartsWith("98") && input.Length == 12)
+            input = "0" + input[2..];
+
         // تبدیل 0098 به 0
         else if (input.StartsWith("0098"))
             input = "0" + input[4..];
 
         // اگر 10 رقم بود و 0 نداشت، 0 اضافه شود
-        if (input.Length == 10 && !input.StartsWith('0'))
+        else if (input.Length == 10 && !input.StartsWith('0'))
             input = "0" + input;
 
         return input;

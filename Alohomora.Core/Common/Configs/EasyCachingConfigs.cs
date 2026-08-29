@@ -1,6 +1,6 @@
 ﻿namespace Alohomora.Core.Common.Configs;
 
-public class EasyCachingConfigs
+public static class EasyCachingConfigs
 {
     public const string AccessTokenIdStoreHost = "http://localhost";
     public const int AccessTokenIdStorePort = 6379;
