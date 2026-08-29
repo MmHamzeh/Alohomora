@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alohomora.Sql\Alohomora.Sql.csproj" />
-    <ProjectReference Include="..\Alohomora\Alohomora.Core.csproj" />
+    <ProjectReference Include="..\Alohomora.Core\Alohomora.Core.csproj" />
   </ItemGroup>
 
 </Project>
