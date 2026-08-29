@@ -92,7 +92,7 @@ public static class AlohomoraExtensions
 
         services.AddEasyCaching(options => 
         {
-            options.UseInMemory(AccessTokenIdStoreName);
+            options.UseInMemory(accessTokenIdStoreName);
 
             // options.UseRedis(config => 
             // {
@@ -100,6 +100,9 @@ public static class AlohomoraExtensions
             // }, AccessTokenIdStoreName)
             // .WithMessagePack();            
         });    
+
+        return services;
+
     }
 
     public static IApplicationBuilder UseAlohomora(this IApplicationBuilder app)

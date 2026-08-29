@@ -13,7 +13,7 @@ public class PayamResanV3Service : ISmsService
     private readonly long Sender;
     private readonly HttpClient  _httpClient;
 
-    public PayamResanService(IHttpClientFactory httpClientFactory, string apiKey, string sender)
+    public PayamResanV3Service(IHttpClientFactory httpClientFactory, string apiKey, long sender)
     {
         _httpClient = httpClientFactory.CreateClient("PayamResasnV3");
         ApiKey = apiKey;

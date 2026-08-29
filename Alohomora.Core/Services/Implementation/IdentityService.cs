@@ -140,7 +140,7 @@ internal class IdentityService : IIdentityService
         if (authOtp is not null)
         {
             // If an OTP already exists for this phone number, we can update it
-            authOtp.Expires = _timeProvider.GetUtcNow().AddMinutes(5);
+            authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
         }
         else
         {
@@ -151,7 +151,7 @@ internal class IdentityService : IIdentityService
             {
                 PublicId = Guid.CreateVersion7(),
                 Code = otp,
-                Expires = _timeProvider.GetUtcNow().AddMinutes(5),
+                Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5),
                 IsUsed = false,
                 UserId = user.Id,
                 UserPhoneNumber = user.PhoneNumber,
@@ -302,7 +302,7 @@ internal class IdentityService : IIdentityService
             LockoutEnabled = true,
             AccessFailedCount = 0,
             PublicId = Guid.CreateVersion7(),
-            CreatedOn = _timeProvider.GetUtcNow();,
+            CreatedOn = _timeProvider.GetUtcNow().DateTime,
             TwoFactorEnabled = false
         };
 
@@ -350,7 +350,7 @@ internal class IdentityService : IIdentityService
         {
             // Update existing OTP
             authOtp.Code = OtpHelper.GenerateAuthOtp();
-            authOtp.Expires = _timeProvider.GetUtcNow().AddMinutes(5);
+            authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
             authOtp.IsUsed = false;
         }
         else
@@ -361,7 +361,7 @@ internal class IdentityService : IIdentityService
             {
                 PublicId = Guid.CreateVersion7(),
                 Code = otp,
-                Expires = _timeProvider.GetUtcNow().AddMinutes(5),
+                Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5),
                 IsUsed = false,
                 UserId = user.Id,
                 UserPhoneNumber = user.PhoneNumber,
@@ -447,7 +447,7 @@ internal class IdentityService : IIdentityService
             Name = dto.Name,
             FaName = dto.FaName,
             Description = dto.Description ?? string.Empty,
-            CreatedOn = _timeProvider.GetUtcNow();
+            CreatedOn = _timeProvider.GetUtcNow().DateTime
         };
 
         await _roleRepository.AddAsync(role, ct);
@@ -487,7 +487,7 @@ internal class IdentityService : IIdentityService
             PublicId = Guid.CreateVersion7(),
             UserId = user.Id,
             RoleId = role.Id,
-            CreatedOn = _timeProvider.GetUtcNow();
+            CreatedOn = _timeProvider.GetUtcNow().DateTime
         };
 
         await _userRoleRepository.AddAsync(userRole, ct);
@@ -568,9 +568,9 @@ internal class IdentityService : IIdentityService
 
             user.LockoutEnd = user.AccessFailedCount switch
             {
-                >= 5 and < 10 => _timeProvider.GetUtcNow().AddMinutes(15),
-                >= 10 and < 15 => _timeProvider.GetUtcNow().AddMinutes(60),
-                >= 15 => _timeProvider.GetUtcNow().AddDays(1),
+                >= 5 and < 10 => _timeProvider.GetUtcNow().DateTime.AddMinutes(15),
+                >= 10 and < 15 => _timeProvider.GetUtcNow().DateTime.AddMinutes(60),
+                >= 15 => _timeProvider.GetUtcNow().DateTime.AddDays(1),
                 _ => user.LockoutEnd
             };
 
@@ -634,7 +634,7 @@ internal class IdentityService : IIdentityService
             AccessFailedCount = 0,
             PublicId = Guid.CreateVersion7(),
             UserName = phoneNumber,
-            CreatedOn = _timeProvider.GetUtcNow();
+            CreatedOn = _timeProvider.GetUtcNow().DateTime
         };
         await _userRepository.AddAsync(user, ct);
         await _unitOfWork.SaveChanges();
@@ -644,7 +644,7 @@ internal class IdentityService : IIdentityService
     private async Task<bool> SendOtpSms(string phoneNumber, string otp)
     {
         var message = $"{CommonResource.ApplicationName}\n" +
-                      string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().ToPersianDateTime().ToLongTimeString());
+                      string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
 
         return await _messageService.SendMessageAsync(phoneNumber, message);
     }

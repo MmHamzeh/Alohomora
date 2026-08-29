@@ -9,7 +9,7 @@ public static class AlohomoraPayamResanExtensions
 {
     public static IServiceCollection AddAlohomoraPayamResan(this IServiceCollection services, IConfiguration configuration)
     {
-        builder.Services.AddHttpClient("PayamResasnV3", httpClient =>
+        services.AddHttpClient("PayamResasnV3", httpClient =>
         {
             httpClient.BaseAddress = new Uri("http://api.sms-webservice.com/api/V3/");
         });

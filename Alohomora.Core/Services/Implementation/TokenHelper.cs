@@ -60,18 +60,18 @@ public class TokenHelper : IDisposable
                 _rsa = RSA.Create();
                 _rsa.ImportFromPem(_privateKeyPem);
 
-                    if (!PublicKeysMatch(_rsa, _publicKeyPem))
-                    {
-                        _rsa.Dispose();
+                if (!PublicKeysMatch(_rsa, _publicKeyPem))
+                {
+                    _rsa.Dispose();
 
-                        throw new CryptographicException(
-                            "RSA key mismatch. Refusing to start.");
-                    }                
+                    throw new CryptographicException(
+                        "RSA key mismatch. Refusing to start.");
+                }
             }
-            else 
+            else
             {
                 // Generate a 2048-bit RSA key
-                 _rsa = RSA.Create(2048);
+                _rsa = RSA.Create(2048);
 
                 _privateKeyPem = _rsa.ExportPkcs8PrivateKeyPem();
                 _publicKeyPem = _rsa.ExportSubjectPublicKeyInfoPem();
@@ -110,11 +110,11 @@ public class TokenHelper : IDisposable
     {
         if (string.IsNullOrWhiteSpace(tokenString))
             throw new ArgumentNullException(nameof(tokenString), "Access token cannot be null or empty.");
-        
+
         var jwtToken = TokenHandler.ReadJwtToken(tokenString);
         if (jwtToken == null)
             throw new SecurityTokenException("Invalid access token format.");
-       
+
         return jwtToken;
     }
 
@@ -123,12 +123,12 @@ public class TokenHelper : IDisposable
         return TokenHandler.WriteToken(token);
     }
 
-    internal static RefreshToken CreateRefreshToken(long userId, Guid accessTokenId, bool rememberMe = false)
+    internal static RefreshToken CreateRefreshToken(long userId, Guid accessTokenId, TimeProvider timeProvider, bool rememberMe = false)
     {
         return new RefreshToken
         {
             Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-            Expires = _timeProvider.GetUtcNow().AddDays(rememberMe ? 30 : 1),
+            Expires = timeProvider.GetUtcNow().DateTime.AddDays(rememberMe ? 30 : 1),
             UserId = userId,
             IsRevoked = false,
             RememberMe = rememberMe,
@@ -167,7 +167,7 @@ public class TokenHelper : IDisposable
             IssuerSigningKey = SecKey,
         };
 
-    
+
     // public JwtBearerEvents JwtBearerEvents =>
     //     new()
     //     {
@@ -279,7 +279,7 @@ public class TokenHelper : IDisposable
             Issuer = _issuer,
             Audience = _audience,
             Subject = new ClaimsIdentity(claims),
-            Expires = _timeProvider.GetUtcNow().AddMinutes(_settings.AccessTokenExpirationMinutes),
+            Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(_settings.AccessTokenExpirationMinutes),
             SigningCredentials = credentials
         };
     }
@@ -312,12 +312,12 @@ public class TokenHelper : IDisposable
 
     private static bool PublicKeysMatch(RSA rsa, string publicKeyPem)
     {
-       try
+        try
         {
             using var storedPublicKey = RSA.Create();
             storedPublicKey.ImportFromPem(publicKeyPem);
 
-            byte[] derivedPublicKey = privateKey.ExportSubjectPublicKeyInfo();
+            byte[] derivedPublicKey = rsa.ExportSubjectPublicKeyInfo();
             byte[] storedPublicKeyBytes = storedPublicKey.ExportSubjectPublicKeyInfo();
 
             return CryptographicOperations.FixedTimeEquals(derivedPublicKey, storedPublicKeyBytes);

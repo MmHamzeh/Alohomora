@@ -34,11 +34,11 @@ public class TokenService : ITokenService
     public async Task<CreateTokenResult> GenerateTokensAsync(User user, bool rememberMe = false)
     {
         var roles = await _roleRepository.GetUserRolesName(user.Id);
-        var accessTokenJwt = _tokenHelper.CreateAccessTokenAsync(user.PublicId, roles);
+        var accessTokenJwt = _tokenHelper.CreateAccessToken(user.PublicId, roles);
 
         var accessTokenId = TokenHelper.GetAccessTokenId(accessTokenJwt);
 
-        var refreshToken = TokenHelper.CreateRefreshToken(user.Id, accessTokenId.Value, rememberMe);
+        var refreshToken = TokenHelper.CreateRefreshToken(user.Id, accessTokenId.Value, _timeProvider, rememberMe);
 
         await _refreshTokenRepository.AddAsync(refreshToken);
         _ = await _unitOfWork.SaveChanges();
