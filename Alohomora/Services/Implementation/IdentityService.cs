@@ -12,7 +12,7 @@ using Alohomora.Core.Services.Contact.ExternalServices;
 
 namespace Alohomora.Core.Services.Implementation;
 
-public class IdentityService : IIdentityService
+internal class IdentityService : IIdentityService
 {
     #region Fields and Ctor
 

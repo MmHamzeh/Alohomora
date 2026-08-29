@@ -15,7 +15,7 @@ public static class ApplicationSetting
     public const string DomainName = "domain.ir";
     public const string ApplicationName = "ApplicationName";
 
-
+    public static string RsaKeysDirectory = "rsa-keys";
 
     public const int AccessTokenExpirationMinutes = 10;
 }

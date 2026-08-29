@@ -3,22 +3,25 @@ using Alohomora.Core.Domain.Models.DbModels;
 
 namespace Alohomora.Core.Services.Implementation;
 
-public class TokenHelper
+public class TokenHelper : IDisposable
 {
     #region Fields and Ctor
 
     private readonly bool useRsa;
-    private readonly string SecAlgorithm;
+    private readonly string _secAlgorithm;
 
     private readonly JwtSettings _settings;
-    private readonly string Issuer;
-    private readonly string Audience;
+    private readonly string _issuer;
+    private readonly string _audience;
 
     private readonly RSA? _rsa;
-    private readonly byte[]? PrivateKeyPem;
-    private readonly byte[]? PublicKeyPem;
+    private readonly string _privateKeyPem;
+    private readonly string _publicKeyPem;
     private readonly JwtSecurityTokenHandler TokenHandler;
-    private byte[]? _pecretKeyBytes;
+    private byte[]? _secretKeyBytes;
+
+    private readonly string _privateKeyFilePath;
+    private readonly string _publicKeyFilePath;
 
     private TokenValidationParameters? _tokenValidationParameters = null;
 
@@ -26,53 +29,76 @@ public class TokenHelper
     {
         _settings = options.Value;
         useRsa = _settings.UseRsa;
-        Issuer = _settings.Issuer;
-        Audience = _settings.Audience;
+        _issuer = _settings.Issuer;
+        _audience = _settings.Audience;
 
         TokenHandler = new();
 
-        SecAlgorithm = useRsa
+        _secAlgorithm = useRsa
             ? SecurityAlgorithms.RsaSha256
             : SecurityAlgorithms.HmacSha256;
 
         if (useRsa)
         {
-            _rsa = RSA.Create(2048); // Generate a 2048-bit RSA key
+            var rsaKeysFullDirectory = Path.Combine(AppContext.BaseDirectory, ApplicationSetting.RsaKeysDirectory);
 
-            //Get PrivateKeyPem If Possible
-            //Get PublicKeyPem If Possible
+            if (!Directory.Exists(rsaKeysFullDirectory))
+            {
+                Directory.CreateDirectory(rsaKeysFullDirectory);
+            }
 
-            if (PrivateKeyPem is null)
-                PrivateKeyPem = _rsa.ExportRSAPrivateKey();
-            else
-                _rsa.ImportRSAPrivateKey(PrivateKeyPem, out _);
+            _privateKeyFilePath = Path.Combine(rsaKeysFullDirectory, "private_key.pem");
+            _publicKeyFilePath = Path.Combine(rsaKeysFullDirectory, "public_key.pem");
 
-            if (PublicKeyPem is null)
-                PublicKeyPem = _rsa.ExportSubjectPublicKeyInfo();
-            else
-                _rsa.ImportSubjectPublicKeyInfo(PublicKeyPem, out _);
+            if (File.Exists(_privateKeyFilePath) && File.Exists(_publicKeyFilePath))
+            {
+                _privateKeyPem = File.ReadAllText(_privateKeyFilePath);
+                _publicKeyPem = File.ReadAllText(_publicKeyFilePath);
+
+                _rsa = RSA.Create();
+                _rsa.ImportFromPem(_privateKeyPem);
+
+                    if (!PublicKeysMatch(_rsa, _publicKeyPem))
+                    {
+                        _rsa.Dispose();
+
+                        throw new CryptographicException(
+                            "RSA key mismatch. Refusing to start.");
+                    }                
+            }
+            else 
+            {
+                // Generate a 2048-bit RSA key
+                 _rsa = RSA.Create(2048);
+
+                _privateKeyPem = _rsa.ExportPkcs8PrivateKeyPem();
+                _publicKeyPem = _rsa.ExportSubjectPublicKeyInfoPem();
+
+                File.WriteAllText(_privateKeyFilePath, _privateKeyPem);
+                File.WriteAllText(_publicKeyFilePath, _publicKeyPem);
+            }
 
             if (ApplicationSetting.IsDebugMode)
             {
-                Console.WriteLine($"private key: {Convert.ToBase64String(PrivateKeyPem, Base64FormattingOptions.InsertLineBreaks)}");
-                Console.WriteLine($"public key: {Convert.ToBase64String(PublicKeyPem, Base64FormattingOptions.InsertLineBreaks)}");
+                Console.WriteLine($"[RSA Private Key Loaded]:\n{_privateKeyPem}");
+                Console.WriteLine($"[RSA Public Key Loaded]:\n{_publicKeyPem}");
             }
+
         }
         else
         {
             // For symmetric keys, we can use a predefined secret key
             _rsa = null;
-            PrivateKeyPem = null; // Not used for symmetric keys
-            PublicKeyPem = null;  // Not used for symmetric keys
+            _privateKeyPem = string.Empty; // Not used for symmetric keys
+            _publicKeyPem = string.Empty;  // Not used for symmetric keys
+            _privateKeyFilePath = string.Empty;
+            _publicKeyFilePath = string.Empty;
         }
-
-
-
     }
 
     #endregion
 
-    internal JwtSecurityToken CreateAccessTokenAsync(Guid userPublicId, IList<string> roles)
+    internal JwtSecurityToken CreateAccessToken(Guid userPublicId, IList<string> roles)
     {
         var tokenDescriptor = GetAccessTokenDescriptor(userPublicId, roles);
         return TokenHandler.CreateJwtSecurityToken(tokenDescriptor);
@@ -82,9 +108,11 @@ public class TokenHelper
     {
         if (string.IsNullOrWhiteSpace(tokenString))
             throw new ArgumentNullException(nameof(tokenString), "Access token cannot be null or empty.");
+        
         var jwtToken = TokenHandler.ReadJwtToken(tokenString);
         if (jwtToken == null)
             throw new SecurityTokenException("Invalid access token format.");
+       
         return jwtToken;
     }
 
@@ -98,12 +126,12 @@ public class TokenHelper
         return new RefreshToken
         {
             Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-            Expires = DateTime.Now.AddDays(rememberMe ? 30 : 1),
+            Expires = DateTime.UtcNow.AddDays(rememberMe ? 30 : 1),
             UserId = userId,
             IsRevoked = false,
             RememberMe = rememberMe,
             AccessTokenId = accessTokenId,
-            PublicId = Guid.NewGuid()
+            PublicId = Guid.CreateVersion7()
         };
     }
 
@@ -114,7 +142,7 @@ public class TokenHelper
 
         tokenString = tokenString.Trim();
 
-        if (tokenString.StartsWith("Bearer ", StringComparison.CurrentCultureIgnoreCase))
+        if (tokenString.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             tokenString = tokenString["Bearer ".Length..];
 
         var tokenValidationResult = await TokenHandler.ValidateTokenAsync(tokenString, TokenValidationParameters);
@@ -128,15 +156,16 @@ public class TokenHelper
             ClockSkew = TimeSpan.Zero, // Reduce time skew tolerance
 
             ValidateIssuer = true,
-            ValidIssuer = Issuer,
+            ValidIssuer = _issuer,
 
             ValidateAudience = true,
-            ValidAudience = Audience,
+            ValidAudience = _audience,
 
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = SecKey,
         };
 
+    
     // public JwtBearerEvents JwtBearerEvents =>
     //     new()
     //     {
@@ -176,7 +205,7 @@ public class TokenHelper
         var principal = TokenHandler.ValidateToken(tokenString, tokenValidationParameters, out var securityToken);
 
         if (securityToken is not JwtSecurityToken jwtSecToken ||
-            !jwtSecToken.Header.Alg.Equals(SecAlgorithm, StringComparison.InvariantCultureIgnoreCase))
+            !jwtSecToken.Header.Alg.Equals(_secAlgorithm, StringComparison.OrdinalIgnoreCase))
             throw new SecurityTokenException("Invalid token");
 
 
@@ -230,26 +259,25 @@ public class TokenHelper
         //var claims = new Dictionary<string, object>
         var claims = new List<Claim>
             {
-                new (JwtRegisteredClaimNames.Sub, userPublicId.ToString() ),
-                new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString() ),
-                new (JwtRegisteredClaimNames.Iat, DateTimeOffset.Now.ToUnixTimeSeconds().ToString() ),
-                new (JwtRegisteredClaimNames.Iss, Issuer )
+                new (JwtRegisteredClaimNames.Sub, userPublicId.ToString()),
+                new (JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
+                new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                new (JwtRegisteredClaimNames.Iss, _issuer)
             };
 
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
 
         // کلید و اعتبارسنجی
-        var credentials = new SigningCredentials(SecKey, SecAlgorithm);
+        var credentials = new SigningCredentials(SecKey, _secAlgorithm);
 
         // توکن دسترسی
         return new SecurityTokenDescriptor()
         {
-            Issuer = Issuer,
-            Audience = Audience,
-            //Claims = claims,
+            Issuer = _issuer,
+            Audience = _audience,
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddMinutes(_settings.AccessTokenExpirationMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpirationMinutes),
             SigningCredentials = credentials
         };
     }
@@ -262,20 +290,47 @@ public class TokenHelper
 
     private RsaSecurityKey GetRsaSecurityKey()
     {
+        if (_rsa == null)
+            throw new InvalidOperationException("RSA is not initialized.");
+
         return new RsaSecurityKey(_rsa);
     }
 
     private SymmetricSecurityKey GetSymmetricSecurityKey()
     {
-        if (_pecretKeyBytes is not null)
-            return new SymmetricSecurityKey(_pecretKeyBytes);
+        if (_secretKeyBytes is not null)
+            return new SymmetricSecurityKey(_secretKeyBytes);
 
         if (string.IsNullOrWhiteSpace(_settings.SecretKey))
             throw new InvalidOperationException("Jwt:SecretKey is not configured.");
 
-        _pecretKeyBytes = Encoding.UTF8.GetBytes(_settings.SecretKey);
-        return new SymmetricSecurityKey(_pecretKeyBytes);
+        _secretKeyBytes = Encoding.UTF8.GetBytes(_settings.SecretKey);
+        return new SymmetricSecurityKey(_secretKeyBytes);
+    }
+
+    private static bool PublicKeysMatch(RSA rsa, string publicKeyPem)
+    {
+       try
+        {
+            using var storedPublicKey = RSA.Create();
+            storedPublicKey.ImportFromPem(publicKeyPem);
+
+            byte[] derivedPublicKey = privateKey.ExportSubjectPublicKeyInfo();
+            byte[] storedPublicKeyBytes = storedPublicKey.ExportSubjectPublicKeyInfo();
+
+            return CryptographicOperations.FixedTimeEquals(derivedPublicKey, storedPublicKeyBytes);
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
     }
 
     #endregion
+
+    public void Dispose()
+    {
+        _rsa?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
