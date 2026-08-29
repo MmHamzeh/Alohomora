@@ -6,11 +6,21 @@ using RestSharp;
 
 namespace Alohomora.PayamResan.Services;
 
-public class PayamResanService : ISmsService
+public class PayamResanV3Service : ISmsService
 {
     private static readonly RestClient _client = new("http://api.sms-webservice.com/api/V3/");
-    private const string ApiKey = ""; // Replace with your actual API key
-    private const long Sender = 0L; // Replace with your actual sender Number
+    private readonly string ApiKey;
+    private readonly long Sender;
+    private readonly HttpClient  _httpClient;
+
+    public PayamResanService(IHttpClientFactory httpClientFactory, string apiKey, string sender)
+    {
+        _httpClient = httpClientFactory.CreateClient("PayamResasnV3");
+        ApiKey = apiKey;
+        Sender = sender;
+    }
+
+
 
     /// <summary>
     /// متد ارسال یک متن به یک یا چند شماره با متد Get (Send )

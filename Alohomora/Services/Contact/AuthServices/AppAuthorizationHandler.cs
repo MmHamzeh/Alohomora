@@ -94,7 +94,7 @@ public class AppAuthorizationHandler(TokenHelper tokenHelper) : AuthorizationHan
         var httpContext = (context.Resource as DefaultHttpContext)
             ?? throw new InvalidOperationException("HttpContext not available");
 
-        string authHeader = httpContext.Request.Headers[HeaderNames.Authorization].ToString() ?? string.Empty;
+        var authHeader = httpContext.Request.Headers[HeaderNames.Authorization].ToString() ?? string.Empty;
 
         var isValid = await tokenHelper.ValidateToken(authHeader);
 

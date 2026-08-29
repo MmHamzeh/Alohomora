@@ -12,7 +12,8 @@ public static class ApplicationSetting
 
 
     //TODO: Get these from appsettings.json
-    public const string DomainName = "domain.ir";
+    public const string ApiDomainName = "api.domain.ir";
+    public const string AuthDomainName = "auth.domain.ir";
     public const string ApplicationName = "ApplicationName";
 
     public static string RsaKeysDirectory = "rsa-keys";

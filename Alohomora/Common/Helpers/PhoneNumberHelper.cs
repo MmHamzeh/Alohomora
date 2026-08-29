@@ -7,8 +7,14 @@ public static class PhoneNumberHelper
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
 
-        // حذف فاصله‌ها
-        input = input.Replace(" ", "").Trim();
+        // حذف فاصله‌ها و بقیه کارکتر های غیر عددی
+        input = input
+            .Replace(" ", "")
+            .Replace("(", "")
+            .Replace(")", "")
+            .Replace("-", "")
+            .Replace("_", "")
+            .Trim();
 
         // تبدیل +98 به 0
         if (input.StartsWith("+98"))

@@ -9,7 +9,10 @@ public static class JsonHelper
 
     public static JsonSerializerOptions GetJsonSerializerOptions()
     {
-        _options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        if (_options is not null)
+            return _options;
+
+        _options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             // Performance & Memory
             DefaultBufferSize = 1024 * 4, // 4 KB buffer pool tuning

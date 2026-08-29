@@ -38,9 +38,6 @@ internal class AuthOtpRepository : IAuthOtpRepository
 
     public async Task<AuthOtp?> GetByEmailAndCode(string email, string code, CancellationToken ct)
     {
-        if (EmailHelper.IsValidEmail(email) is false)
-            return null;
-
         return await _dbContext.AuthOtps
             .FirstOrDefaultAsync(e => e.UserEmail == email && e.Code == code && e.IsUsed == false, ct);
     }
