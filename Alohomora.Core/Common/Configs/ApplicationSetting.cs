@@ -9,9 +9,12 @@ public static class ApplicationSetting
     public const bool IsDebugMode = true;
 #endif
 
-
+    // When true the API responses may include the OTP for testing/debugging.
+    // Should be false in production to avoid leaking OTP codes.
+    public const bool ExposeOtpInResponse = IsDebugMode;
 
     //TODO: Get these from appsettings.json
+
     public const string ApiDomainName = "api.domain.ir";
     public const string AuthDomainName = "auth.domain.ir";
     public const string ApplicationName = "ApplicationName";

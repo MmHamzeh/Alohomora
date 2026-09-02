@@ -21,6 +21,7 @@ internal class IdentityService : IIdentityService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISmsService _messageService;
+    private readonly IEmailService _emailService;
     private readonly IEasyCachingProvider _accessTokenCache;
 
     private readonly IRefreshTokenRepository _refreshTokenRepository;
@@ -31,12 +32,13 @@ internal class IdentityService : IIdentityService
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly TimeProvider _timeProvider;
 
-    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, TimeProvider timeProvider)
+    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEmailService emailService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, TimeProvider timeProvider)
     {
         _tokenService = tokenService;
         _httpContextAccessor = httpContextAccessor;
         _unitOfWork = unitOfWork;
         _messageService = messageService;
+        _emailService = emailService;
         _tokenHelper = tokenHelper;
         _accessTokenCache = easyCachingProviderFactory.GetCachingProvider(EasyCachingConfigs.AccessTokenIdStoreName);
 
@@ -139,14 +141,15 @@ internal class IdentityService : IIdentityService
 
         if (authOtp is not null)
         {
-            // If an OTP already exists for this phone number, we can update it
+            // Update expiry in-memory; persist only after successful send
             authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
+            authOtp.IsUsed = false;
         }
         else
         {
             var otp = OtpHelper.GenerateAuthOtp();
 
-            // Create a new OTP entry
+            // Prepare a new OTP entry (don't persist until we confirm sending)
             authOtp = new AuthOtp
             {
                 PublicId = Guid.CreateVersion7(),
@@ -158,12 +161,34 @@ internal class IdentityService : IIdentityService
                 UserEmail = user.Email
             };
 
-            await _authOtpRepository.AddAsync(authOtp, ct);
+            // Note: do not persist yet - wait until at least one delivery channel succeeds
         }
 
-        await _unitOfWork.SaveChanges();
+        // Build message
+        var message = string.Format(IdentityResource.OtpMessage, authOtp.Code, authOtp.Code, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
 
-        var sendOtpSmsResult = await SendOtpSms(normalizePhoneNumber, authOtp.Code);
+        // Try sending via SMS
+        var smsSent = await SendOtpSms(normalizePhoneNumber, authOtp.Code, ct);
+
+        // Try sending via Email if available
+        var emailSent = false;
+        if (!string.IsNullOrEmpty(user.Email))
+        {
+            var subject = $"{CommonResource.ApplicationName} - OTP";
+            emailSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
+        }
+
+        if (!smsSent && !emailSent)
+        {
+            // Do not persist OTP if we couldn't deliver it
+            return new SingleResponse<LoginVm>("Failed to send OTP. Please try again later.");
+        }
+
+        // Persist OTP (either updated or new)
+        if (authOtp.Id == 0)
+            await _authOtpRepository.AddAsync(authOtp, ct);
+
+        await _unitOfWork.SaveChanges();
 
         var response = new SingleResponse<LoginVm>(new LoginVm
         {
@@ -172,7 +197,7 @@ internal class IdentityService : IIdentityService
             ReturnUrl = "/Login-Confirm?returnUrl=" + dto.ReturnUrl,
         });
 
-        if (ApplicationSetting.IsDebugMode)
+        if (ApplicationSetting.ExposeOtpInResponse)
             response.Message = "Otp: " + authOtp.Code;
 
         return response;
@@ -294,7 +319,8 @@ internal class IdentityService : IIdentityService
             PhoneNumber = normalizePhoneNumber,
             UserName = normalizePhoneNumber,
             Email = dto.Email,
-            EmailConfirmed = string.IsNullOrEmpty(dto.Email) ? false : false,
+            // Default to not confirmed. Email confirmation flow should explicitly confirm the email.
+            EmailConfirmed = false,
             PhoneNumberConfirmed = false,
             PasswordHash = _passwordHasher.HashPassword(new User(), dto.Password),
             CanUsePassword = true,
@@ -348,14 +374,14 @@ internal class IdentityService : IIdentityService
 
         if (authOtp is not null)
         {
-            // Update existing OTP
+            // Update existing OTP in-memory
             authOtp.Code = OtpHelper.GenerateAuthOtp();
             authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
             authOtp.IsUsed = false;
         }
         else
         {
-            // Create new OTP
+            // Create new OTP (do not persist until delivery confirmed)
             var otp = OtpHelper.GenerateAuthOtp();
             authOtp = new AuthOtp
             {
@@ -367,22 +393,36 @@ internal class IdentityService : IIdentityService
                 UserPhoneNumber = user.PhoneNumber,
                 UserEmail = user.Email
             };
-
-            await _authOtpRepository.AddAsync(authOtp, ct);
         }
 
-        await _unitOfWork.SaveChanges();
-
-        // Send OTP via SMS
+        // Build message
         var message = $"{CommonResource.ApplicationName}\n" +
                       $"کد بازیابی رمز عبور شما: {authOtp.Code}\n" +
                       $"این کد تا 5 دقیقه معتبر است.";
 
-        await _messageService.SendMessageAsync(normalizePhoneNumber, message);
+        // Try sending via SMS
+        var smsSent = await _messageService.SendMessageAsync(normalizePhoneNumber, message, ct);
+
+        // Try sending via email if user has email
+        var emailSent = false;
+        if (!string.IsNullOrEmpty(user.Email))
+        {
+            var subject = $"{CommonResource.ApplicationName} - Password Reset Code";
+            emailSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
+        }
+
+        if (!smsSent && !emailSent)
+            return new Response("Failed to send password reset code. Please try again later.");
+
+        // Persist OTP only after successful delivery
+        if (authOtp.Id == 0)
+            await _authOtpRepository.AddAsync(authOtp, ct);
+
+        await _unitOfWork.SaveChanges();
 
         var response = new Response("Password reset code sent successfully");
-        
-        if (ApplicationSetting.IsDebugMode)
+
+        if (ApplicationSetting.ExposeOtpInResponse)
             response.Message = $"OTP: {authOtp.Code}";
 
         return response;
@@ -641,12 +681,12 @@ internal class IdentityService : IIdentityService
         return user;
     }
 
-    private async Task<bool> SendOtpSms(string phoneNumber, string otp)
+    private async Task<bool> SendOtpSms(string phoneNumber, string otp, CancellationToken ct = default)
     {
         var message = $"{CommonResource.ApplicationName}\n" +
                       string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
 
-        return await _messageService.SendMessageAsync(phoneNumber, message);
+        return await _messageService.SendMessageAsync(phoneNumber, message, ct);
     }
 
     private async Task<bool> SendLoginNotification(string phoneNumber, string ipAddress)
