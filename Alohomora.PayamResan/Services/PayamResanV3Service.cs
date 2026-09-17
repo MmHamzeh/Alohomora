@@ -31,14 +31,28 @@ public class PayamResanV3Service : ISmsService
     /// <returns></returns>
     public async Task<bool> SendMessageAsync(string phoneNumber, string message, CancellationToken ct = default)
     {
-        var request = new RestRequest($"Send").AddQueryParameter("ApiKey", ApiKey, encode: true);
-        request.AddQueryParameter("Text", message, encode: true);
-        request.AddQueryParameter("Sender", Sender);
-        request.AddQueryParameter("Recipients", phoneNumber);
-
-        var response = await _client.ExecuteGetAsync(request, ct);
-        var finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SendSMSOutput>>>(response.Content);
-        return finalresult.Success;
+        // 1. Build Query Parameters
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["ApiKey"] = ApiKey,
+            ["Text"] = message,
+            ["Sender"] = Sender,
+            ["Recipients"] = phoneNumber
+        };
+    
+        var queryString = string.Join("&", query.Select(kvp =>
+            $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
+    
+        var url = $"Send?{queryString}";    
+        // 2. Execute GET Request
+        using var response = await _httpClient.GetAsync(url, ct);
+        response.EnsureSuccessStatusCode();
+    
+        // 3. Read Content and Deserialize
+        var contentStream = await response.Content.ReadAsStreamAsync();
+        var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendSMSOutput>>>(contentStream);
+    
+        return finalResult?.Success ?? false;
     }
 
 
@@ -51,23 +65,27 @@ public class PayamResanV3Service : ISmsService
     /// <returns></returns>
     public async Task<bool> SendMessageAsync(List<string> phoneNumberList, string message, CancellationToken ct = default)
     {
-        SendBulkSMSDto dto = new()
+        var dto = new SendBulkSMSDto
         {
             ApiKey = ApiKey,
             Sender = Sender,
             Text = message,
-
             Recipients = phoneNumberList.Select(phoneNumber => new SendBulkRecipient
             {
                 Destination = long.Parse(phoneNumber),
-                UserTraceId = 0 // Assuming UserTraceId is not required for bulk messages
+                UserTraceId = 0
             }).ToArray()
         };
-
-        var request = new RestRequest($"SendBulk").AddJsonBody(dto);
-        var response = await _client.ExecutePostAsync(request, ct);
-        SMSOutputGenericModel<List<SendSMSOutput>> finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SendSMSOutput>>>(response.Content);
-        return finalresult.Success;
+    
+        // PostAsJsonAsync serializes dto directly to the request stream
+        using var response = await _httpClient.PostAsJsonAsync("SendBulk", dto, ct);
+        response.EnsureSuccessStatusCode();
+    
+        // Stream directly into your deserializer to avoid LOH / string allocations
+        var responseStream = await response.Content.ReadAsStreamAsync();
+        var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendSMSOutput>>>(responseStream);
+    
+        return finalResult?.Success ?? false;
     }
 
 
@@ -79,22 +97,27 @@ public class PayamResanV3Service : ISmsService
     /// <returns></returns>
     public async Task<bool> SendMessageAsync(List<Tuple<string, string>> phoneNumberMessageList, CancellationToken ct = default)
     {
-        SendMultipleSMSDto dto = new()
+        var dto = new SendMultipleSMSDto
         {
             ApiKey = ApiKey,
-            Recipients = phoneNumberMessageList.Select(phoneNumberMessage => new SendMultipleRecipient
+            Recipients = phoneNumberMessageList.Select(item => new SendMultipleRecipient
             {
-                Destination = long.Parse(phoneNumberMessage.Item1),
-                Text = phoneNumberMessage.Item2,
+                Destination = long.Parse(item.PhoneNumber),
+                Text = item.Message,
                 Sender = Sender,
-                UserTraceId = 0 // Assuming UserTraceId is not required for bulk messages
+                UserTraceId = 0
             }).ToArray()
         };
-
-        var request = new RestRequest($"SendMultiple").AddJsonBody(dto);
-        var response = await _client.ExecutePostAsync(request, ct);
-        var finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SendSMSOutput>>>(response.Content);
-        return finalresult.Success;
+    
+        // Serialize directly to the network stream
+        using var response = await _httpClient.PostAsJsonAsync("SendMultiple", dto, ct);
+        response.EnsureSuccessStatusCode();
+    
+        // Stream-based deserialization to avoid intermediate string allocations
+        var responseStream = await response.Content.ReadAsStreamAsync();
+        var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendSMSOutput>>>(responseStream);
+    
+        return finalResult?.Success ?? false;
     }
 
 
@@ -108,24 +131,38 @@ public class PayamResanV3Service : ISmsService
     /// <param name="ApiKey"></param>
     /// <param name="TemplateKey"></param>
     /// <param name="Destination"></param>
-    /// <param name="p1"></param>
-    /// <param name="p2"></param>
-    /// <param name="p3"></param>
+    /// <param name="parameters"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendTokenSingle(string ApiKey, string TemplateKey, long Destination, string p1, string p2, string p3)
+    internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendTokenSingle(string apiKey, string templateKey, long destination, string[]? parameters = null, CancellationToken ct = default)
     {
-
-        var request = new RestRequest($"SendTokenSingle").AddQueryParameter("ApiKey", ApiKey, true);
-        request.AddQueryParameter("TemplateKey", TemplateKey);
-        request.AddQueryParameter("Destination", Destination);
-        if (p1.Length > 0) request.AddQueryParameter("p1", p1);
-        if (p1.Length > 0) request.AddQueryParameter("p2", p2);
-        if (p1.Length > 0) request.AddQueryParameter("p3", p3);
-
-        var response = await _client.ExecuteGetAsync(request);
-        SMSOutputGenericModel<List<SendTokenOutput>> finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SendTokenOutput>>>(response.Content);
-        return finalresult;
-
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["ApiKey"] = apiKey,
+            ["TemplateKey"] = templateKey,
+            ["Destination"] = destination.ToString()
+        };
+    
+        // Dynamically map parameters to p1, p2, p3, ..., pn
+        if (parameters is { Length: > 0 })
+        {
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(parameters[i]))
+                {
+                    queryParams[$"p{i + 1}"] = parameters[i];
+                }
+            }
+        }
+    
+        var requestUri = QueryHelpers.AddQueryString("SendTokenSingle", queryParams);
+    
+        using var response = await _httpClient.GetAsync(requestUri, ct);
+        response.EnsureSuccessStatusCode();
+    
+        var contentStream = await response.Content.ReadAsStreamAsync();
+        var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendTokenOutput>>>(contentStream);
+    
+        return finalResult!;
     }
 
     /// <summary>
@@ -135,10 +172,13 @@ public class PayamResanV3Service : ISmsService
     /// <returns></returns>
     internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendMultiPleTokenAsync(SendMultipleTokenDto Input)
     {
-        var request = new RestRequest($"SendTokenMulti").AddJsonBody(Input);
-        var response = await _client.ExecutePostAsync(request);
-        SMSOutputGenericModel<List<SendTokenOutput>> finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SendTokenOutput>>>(response.Content);
-        return finalresult;
+        using var response = await _httpClient.PostAsJsonAsync("SendTokenMulti", input, ct);
+        response.EnsureSuccessStatusCode();
+    
+        var contentStream = await response.Content.ReadAsStreamAsync();
+        var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendTokenOutput>>>(contentStream);
+    
+        return finalResult!;
 
     }
 
