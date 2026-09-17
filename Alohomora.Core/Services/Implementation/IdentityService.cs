@@ -32,7 +32,7 @@ internal class IdentityService : IIdentityService
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly TimeProvider _timeProvider;
 
-    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEmailService emailService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, TimeProvider timeProvider)
+    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEmailService emailService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, IPasswordHasher<User> passwordHasher, TimeProvider timeProvider)
     {
         _tokenService = tokenService;
         _httpContextAccessor = httpContextAccessor;
@@ -40,6 +40,9 @@ internal class IdentityService : IIdentityService
         _messageService = messageService;
         _emailService = emailService;
         _tokenHelper = tokenHelper;
+        _passwordHasher = passwordHasher;
+        _timeProvider = timeProvider;
+
         _accessTokenCache = easyCachingProviderFactory.GetCachingProvider(EasyCachingConfigs.AccessTokenIdStoreName);
 
         _refreshTokenRepository = unitOfWork.RefreshTokenRepository;
@@ -47,9 +50,6 @@ internal class IdentityService : IIdentityService
         _userRepository = unitOfWork.UserRepository;
         _roleRepository = unitOfWork.RoleRepository;
         _userRoleRepository = unitOfWork.UserRoleRepository;
-        _timeProvider = timeProvider;
-
-        _passwordHasher = new PasswordHasher<User>();
 
     }
 
@@ -107,7 +107,9 @@ internal class IdentityService : IIdentityService
             ct);
 
         if (user.PhoneNumberConfirmed is false)
-            dto.ReturnUrl = "/Auth/ConfirmPhoneNumber?returnUrl=" + Uri.EscapeDataString(dto.ReturnUrl);
+            dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl) 
+                ? ApplicationConfig.ConfirmPhoneNumberUrl 
+                : ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
 
         if (userHasChanged)
             await _unitOfWork.SaveChanges();
@@ -259,7 +261,7 @@ internal class IdentityService : IIdentityService
             ct);
 
         LoginVm loginVm = new()
-        {  
+        {
             AccessToken = tokens.AccessToken,
             RefreshToken = tokens.RefreshToken,
             ReturnUrl = dto.ReturnUrl
@@ -351,7 +353,7 @@ internal class IdentityService : IIdentityService
             ReturnUrl = dto.ReturnUrl
         };
 
-        return new SingleResponse<LoginVm>(loginVm){ Message = "User registered successfully" };
+        return new SingleResponse<LoginVm>(loginVm) { Message = "User registered successfully" };
     }
 
     public async Task<Response> ForgotPasswordAsync(ForgotPasswordDto dto, CancellationToken ct)
@@ -511,12 +513,12 @@ internal class IdentityService : IIdentityService
 
         // Find role by name
         var role = await _roleRepository.GetByName(dto.RoleName, enableTracking: false, ct);
-        
+
         if (role is null)
             return new Response("Role not found");
 
         // Check if user already has this role
-        var existingUserRole = await _userRoleRepository.ExistsByUserIdRoleId(user.Id, role.Id, ct);   
+        var existingUserRole = await _userRoleRepository.ExistsByUserIdRoleId(user.Id, role.Id, ct);
 
         if (existingUserRole is not false)
             return new Response("User already has this role");
@@ -551,7 +553,7 @@ internal class IdentityService : IIdentityService
 
         // Find role by name
         var role = await _roleRepository.GetByName(dto.RoleName, enableTracking: false, ct);
-        
+
         if (role is null)
             return new Response("Role not found");
 
@@ -580,7 +582,7 @@ internal class IdentityService : IIdentityService
 
         // Get user roles
         var roles = await _roleRepository.GetUserRolesName(user.Id);
-        
+
         return new SingleResponse<List<string>>(roles.ToList());
     }
 
