@@ -9,25 +9,27 @@ public static class AlohomoraPayamResanExtensions
 {
     public static IServiceCollection AddAlohomoraPayamResan(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddHttpClient("PayamResasnV3", httpClient =>
+        services.AddHttpClient("PayamResanV3", httpClient =>
         {
             httpClient.BaseAddress = new Uri("http://api.sms-webservice.com/api/V3/");
         });
 
-        //TODO: Get this from configuration
-        var payamResanApiKey = "";
-        var sender = 0L;
+        var payamResanApiKey = configuration.GetValue<string>("SmsService:PayamResan:ApiKey");
+        var sender = configuration.GetValue<long>("SmsService:PayamResan:AuthSender");
 
-        //services.AddSingleton<ISmsService, PayamResanV3Service>();
+        if (string.IsNullOrEmpty(payamResanApiKey))
+            throw new Exception("SmsService > PayamResan > ApiKey is not provided");
 
-        services.AddSingleton<ISmsService, PayamResanV3Service>(sp =>
+        if (sender == 0L)
+            throw new Exception("SmsService > PayamResan > AuthSender is not provided");
+
+        services.AddSingleton<ISmsService, PayamResanService>(sp =>
         {
             var httpClientFactoryService = sp.GetRequiredService<IHttpClientFactory>();
-            
-            return new PayamResanV3Service(httpClientFactoryService, payamResanApiKey, sender);
+            return new PayamResanService(httpClientFactoryService, payamResanApiKey, sender);
         });
 
         return services;
     }
-    
+
 }

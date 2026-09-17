@@ -5,42 +5,50 @@ namespace Alohomora.Core.Common.Helpers;
 
 public static class JsonHelper
 {
-    private static JsonSerializerOptions? _options;
+    private static JsonSerializerOptions? _options = null;
+    private static readonly Lock Lock = new Lock();
 
     public static JsonSerializerOptions GetJsonSerializerOptions()
     {
-        if (_options is not null)
-            return _options;
-
-        _options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        if (_options is null)
         {
-            // Performance & Memory
-            DefaultBufferSize = 1024 * 4, // 4 KB buffer pool tuning
+            lock (Lock)
+            {
+                if (_options is null)
+                {
 
-            // Payload Optimization
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            WriteIndented = false, // Keep compact in production
+                    _options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                    {
+                        // Performance & Memory
+                        DefaultBufferSize = 1024 * 4, // 4 KB buffer pool tuning
 
-            // Flexibility & Compatibility
-            PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
-            AllowTrailingCommas = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            NumberHandling = JsonNumberHandling.AllowReadingFromString,
+                        // Payload Optimization
+                        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                        WriteIndented = false, // Keep compact in production
 
-            // Character Handling (Prevents unnecessary Unicode escaping for non-Latin characters)
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                        // Flexibility & Compatibility
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+                        AllowTrailingCommas = true,
+                        ReadCommentHandling = JsonCommentHandling.Skip,
+                        NumberHandling = JsonNumberHandling.AllowReadingFromString,
 
-            // Reference Handling (Prevent cyclic dependency exceptions in complex graphs)
-            ReferenceHandler = ReferenceHandler.IgnoreCycles
-        };
+                        // Character Handling (Prevents unnecessary Unicode escaping for non-Latin characters)
+                        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 
-        // Enums as strings globally
-        _options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+                        // Reference Handling (Prevent cyclic dependency exceptions in complex graphs)
+                        ReferenceHandler = ReferenceHandler.IgnoreCycles
+                    };
 
-        // Make immutable for thread safety and internal caching optimization
-        _options.MakeReadOnly();
+                    // Enums as strings globally
+                    _options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+
+                    // Make immutable for thread safety and internal caching optimization
+                    _options.MakeReadOnly();
+                }
+            }
+        }
 
         return _options;
     }
@@ -50,8 +58,18 @@ public static class JsonHelper
         return JsonSerializer.Deserialize<T>(json, GetJsonSerializerOptions());
     }
 
+    public static async Task<T?> DeserializeAsync<T>(Stream stream)
+    {
+        return await JsonSerializer.DeserializeAsync<T>(stream, GetJsonSerializerOptions());
+    }
+
     public static string Serialize<T>(T obj)
     {
         return JsonSerializer.Serialize(obj, GetJsonSerializerOptions());
+    }
+
+    public static async Task SerializeAsync(Stream streamObj)
+    {
+        await JsonSerializer.SerializeAsync(streamObj, GetJsonSerializerOptions());
     }
 }

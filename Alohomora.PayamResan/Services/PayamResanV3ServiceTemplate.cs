@@ -1,25 +1,16 @@
-﻿using System.Text.Json;
-using Alohomora.Core.Common.Helpers;
-using Alohomora.Core.Services.Contact.ExternalServices;
+﻿using Alohomora.Core.Common.Helpers;
 using Alohomora.PayamResan.Models;
-using RestSharp;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 
 namespace Alohomora.PayamResan.Services;
 
-public class PayamResanV3Service : ISmsService
+public class PayamResanV3ServiceTemplate(IHttpClientFactory httpClientFactory, string apiKey, long sender)
+    
 {
-    private static readonly RestClient _client = new("http://api.sms-webservice.com/api/V3/");
-    private readonly string ApiKey;
-    private readonly long Sender;
-    private readonly HttpClient  _httpClient;
-
-    public PayamResanV3Service(IHttpClientFactory httpClientFactory, string apiKey, long sender)
-    {
-        _httpClient = httpClientFactory.CreateClient("PayamResasnV3");
-        ApiKey = apiKey;
-        Sender = sender;
-    }
-
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("PayamResanV3");
 
 
     /// <summary>
@@ -27,21 +18,21 @@ public class PayamResanV3Service : ISmsService
     /// </summary>
     /// <param name="phoneNumber"></param>
     /// <param name="message"></param>
-    /// <param name="cancellationToken"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
     public async Task<bool> SendMessageAsync(string phoneNumber, string message, CancellationToken ct = default)
     {
         // 1. Build Query Parameters
         var queryParams = new Dictionary<string, string?>
         {
-            ["ApiKey"] = ApiKey,
+            ["ApiKey"] = apiKey,
             ["Text"] = message,
-            ["Sender"] = Sender,
+            ["Sender"] = sender.ToString(),
             ["Recipients"] = phoneNumber
         };
     
-        var queryString = string.Join("&", query.Select(kvp =>
-            $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
+        var queryString = string.Join("&", queryParams.Select(kvp =>
+            $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value!)}"));
     
         var url = $"Send?{queryString}";    
         // 2. Execute GET Request
@@ -49,7 +40,7 @@ public class PayamResanV3Service : ISmsService
         response.EnsureSuccessStatusCode();
     
         // 3. Read Content and Deserialize
-        var contentStream = await response.Content.ReadAsStreamAsync();
+        var contentStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendSMSOutput>>>(contentStream);
     
         return finalResult?.Success ?? false;
@@ -61,14 +52,15 @@ public class PayamResanV3Service : ISmsService
     /// </summary>
     /// <param name="phoneNumberList"></param>
     /// <param name="message"></param>
-    /// <param name="cancellationToken"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
-    public async Task<bool> SendMessageAsync(List<string> phoneNumberList, string message, CancellationToken ct = default)
+    public async Task<bool> SendMessageAsync(List<string> phoneNumberList, string message,
+        CancellationToken ct = default)
     {
         var dto = new SendBulkSMSDto
         {
-            ApiKey = ApiKey,
-            Sender = Sender,
+            ApiKey = apiKey,
+            Sender = sender,
             Text = message,
             Recipients = phoneNumberList.Select(phoneNumber => new SendBulkRecipient
             {
@@ -82,7 +74,7 @@ public class PayamResanV3Service : ISmsService
         response.EnsureSuccessStatusCode();
     
         // Stream directly into your deserializer to avoid LOH / string allocations
-        var responseStream = await response.Content.ReadAsStreamAsync();
+        var responseStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendSMSOutput>>>(responseStream);
     
         return finalResult?.Success ?? false;
@@ -93,28 +85,30 @@ public class PayamResanV3Service : ISmsService
     /// متد ارسال یک متن به چند شماره با متد post (SendMultiple )
     /// </summary>
     /// <param name="phoneNumberMessageList"></param>
-    /// <param name="cancellationToken"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
     public async Task<bool> SendMessageAsync(List<Tuple<string, string>> phoneNumberMessageList, CancellationToken ct = default)
     {
         var dto = new SendMultipleSMSDto
         {
-            ApiKey = ApiKey,
+            ApiKey = apiKey,
             Recipients = phoneNumberMessageList.Select(item => new SendMultipleRecipient
             {
-                Destination = long.Parse(item.PhoneNumber),
-                Text = item.Message,
-                Sender = Sender,
+                Destination = long.Parse(item.Item1),
+                Text = item.Item2,
+                Sender = sender,
                 UserTraceId = 0
             }).ToArray()
         };
-    
-        // Serialize directly to the network stream
-        using var response = await _httpClient.PostAsJsonAsync("SendMultiple", dto, ct);
+
+        var json = JsonHelper.Serialize(dto);
+        var content = new StringContent(json, Encoding.UTF8);
+
+        using var response = await _httpClient.PostAsync("SendMultiple", content, ct);
         response.EnsureSuccessStatusCode();
     
         // Stream-based deserialization to avoid intermediate string allocations
-        var responseStream = await response.Content.ReadAsStreamAsync();
+        var responseStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendSMSOutput>>>(responseStream);
     
         return finalResult?.Success ?? false;
@@ -128,18 +122,17 @@ public class PayamResanV3Service : ISmsService
     /// <summary>
     /// متد ارسال به یک شماره با استفاده از الگوی تعریف شده (SendTokenSingle)
     /// </summary>
-    /// <param name="ApiKey"></param>
-    /// <param name="TemplateKey"></param>
-    /// <param name="Destination"></param>
+    /// <param name="destination"></param>
     /// <param name="parameters"></param>
+    /// <param name="templateKey"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendTokenSingle(string apiKey, string templateKey, long destination, string[]? parameters = null, CancellationToken ct = default)
+    internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendTokenSingle(string templateKey, string destination, string[]? parameters = null, CancellationToken ct = default)
     {
         var queryParams = new Dictionary<string, string?>
         {
             ["ApiKey"] = apiKey,
             ["TemplateKey"] = templateKey,
-            ["Destination"] = destination.ToString()
+            ["Destination"] = destination
         };
     
         // Dynamically map parameters to p1, p2, p3, ..., pn
@@ -159,7 +152,7 @@ public class PayamResanV3Service : ISmsService
         using var response = await _httpClient.GetAsync(requestUri, ct);
         response.EnsureSuccessStatusCode();
     
-        var contentStream = await response.Content.ReadAsStreamAsync();
+        var contentStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendTokenOutput>>>(contentStream);
     
         return finalResult!;
@@ -168,14 +161,15 @@ public class PayamResanV3Service : ISmsService
     /// <summary>
     /// متد ارسال به چند شماره با استفاده از الگوی تعریف شده (SendTokenMulti)
     /// </summary>
-    /// <param name="Input"></param>
+    /// <param name="input"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendMultiPleTokenAsync(SendMultipleTokenDto Input)
+    internal async Task<SMSOutputGenericModel<List<SendTokenOutput>>> SendMultiPleTokenAsync(SendMultipleTokenDto input, CancellationToken ct = default)
     {
         using var response = await _httpClient.PostAsJsonAsync("SendTokenMulti", input, ct);
         response.EnsureSuccessStatusCode();
     
-        var contentStream = await response.Content.ReadAsStreamAsync();
+        var contentStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         var finalResult = await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SendTokenOutput>>>(contentStream);
     
         return finalResult!;
@@ -186,14 +180,17 @@ public class PayamResanV3Service : ISmsService
     /// متد دریافت لیست الگوهای تعریف شده در پنل (TokenList)
     /// </summary>
     /// <param name="user"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<List<TokenListOutput>>> TokenList(BaseUser user)
+    internal async Task<SMSOutputGenericModel<List<TokenListOutput>>?> TokenList(BaseUser user, CancellationToken ct)
     {
-        var request = new RestRequest($"TokenList").AddJsonBody(user);
-        var response = await _client.ExecutePostAsync(request);
-        SMSOutputGenericModel<List<TokenListOutput>> finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<TokenListOutput>>>(response.Content);
-        return finalresult;
+        var json = JsonHelper.Serialize(user);
+        var content = new StringContent(json, Encoding.UTF8);
 
+        var response = await _httpClient.PostAsync("TokenList", content, ct);
+        var responseStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+
+        return await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<TokenListOutput>>>(responseStream);
     }
 
     #endregion
@@ -204,14 +201,17 @@ public class PayamResanV3Service : ISmsService
     /// متد دریافت وضعیت پیام های ارسالی (StatusById)
     /// </summary>
     /// <param name="input"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<List<SMSStatusOutput>>> StatusById(GetStatusByIdDto input)
+    internal async Task<SMSOutputGenericModel<List<SMSStatusOutput>>?> StatusById(GetStatusByIdDto input, CancellationToken ct = default)
     {
-        var request = new RestRequest($"StatusById").AddJsonBody(input);
-        var response = await _client.ExecutePostAsync(request);
-        SMSOutputGenericModel<List<SMSStatusOutput>> finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SMSStatusOutput>>>(response.Content);
-        return finalresult;
+        var json = JsonHelper.Serialize(input);
+        var content = new StringContent(json, Encoding.UTF8);
 
+        var response = await _httpClient.PostAsync("StatusById", content, ct);
+        var responseStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+
+        return await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SMSStatusOutput>>>(responseStream);
     }
 
     /// <summary>
@@ -219,12 +219,15 @@ public class PayamResanV3Service : ISmsService
     /// </summary>
     /// <param name="input"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<List<SMSStatusOutput>>> StatusByUserTraceId(GetStatusByUserTraceIdsDto input)
+    internal async Task<SMSOutputGenericModel<List<SMSStatusOutput>>?> StatusByUserTraceId(GetStatusByUserTraceIdsDto input, CancellationToken ct = default)
     {
-        var request = new RestRequest($"StatusByUserTraceId").AddJsonBody(input);
-        var response = await _client.ExecutePostAsync(request);
-        SMSOutputGenericModel<List<SMSStatusOutput>> finalresult = JsonHelper.Deserialize<SMSOutputGenericModel<List<SMSStatusOutput>>>(response.Content);
-        return finalresult;
+        var json = JsonHelper.Serialize(input);
+        var content = new StringContent(json, Encoding.UTF8);
+
+        var response = await _httpClient.PostAsync("StatusByUserTraceId", content, ct);
+        var responseStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+
+        return await JsonHelper.DeserializeAsync<SMSOutputGenericModel<List<SMSStatusOutput>>>(responseStream);
 
     }
 
@@ -236,14 +239,17 @@ public class PayamResanV3Service : ISmsService
     /// متد دریافت مقدار اعتبار و لیست خطوط ارسال کننده فعال در پنل (AccountInfo)
     /// </summary>
     /// <param name="user"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
-    internal async Task<SMSOutputGenericModel<SMSAcountIfoOutput>> AccountInfo(BaseUser user)
+    internal async Task<SMSOutputGenericModel<SMSAcountIfoOutput>?> AccountInfo(BaseUser user, CancellationToken ct = default)
     {
-        var request = new RestRequest($"AccountInfo").AddJsonBody(user);
-        var response = await _client.ExecutePostAsync(request);
-        SMSOutputGenericModel<SMSAcountIfoOutput> finalresult = JsonSerializer.Deserialize<SMSOutputGenericModel<SMSAcountIfoOutput>>(response.Content);
-        return finalresult;
+        var json = JsonHelper.Serialize(user);
+        var content = new StringContent(json, Encoding.UTF8);
 
+        var response = await _httpClient.PostAsync("AccountInfo", content, ct);
+        var responseStream = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+
+        return JsonSerializer.Deserialize<SMSOutputGenericModel<SMSAcountIfoOutput>>(responseStream);
     }
 
     #endregion
