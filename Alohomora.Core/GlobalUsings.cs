@@ -1,5 +1,4 @@
-﻿global using Alohomora.Common.Resources;
-global using EasyCaching.Core;
+﻿global using EasyCaching.Core;
 global using MD.PersianDateTime.Standard;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.AspNetCore.Identity;

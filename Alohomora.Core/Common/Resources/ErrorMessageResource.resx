@@ -117,13 +117,25 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="DuplicateUser" xml:space="preserve">
+    <value>error</value>
+  </data>
+  <data name="FailedToSendOtp" xml:space="preserve">
+    <value>خطا در ارسال رمز یکبار مصرف</value>
+  </data>
   <data name="InvalidOtpLoginAttempt" xml:space="preserve">
-    <value>شناسه کاربری و یا کد یکبار مصرف اشتباه است</value>
+    <value>error</value>
   </data>
   <data name="InvalidPasswordLoginAttempt" xml:space="preserve">
-    <value>شناسه کاربری و یا رمز عبور اشتباه است</value>
+    <value>error</value>
+  </data>
+  <data name="OperationCancelled" xml:space="preserve">
+    <value>error</value>
+  </data>
+  <data name="UserNotFound" xml:space="preserve">
+    <value>error</value>
   </data>
   <data name="WrongPhoneNumberFormat" xml:space="preserve">
-    <value>شماره موبایل وارد شده، اشتباه است</value>
+    <value>error</value>
   </data>
 </root>

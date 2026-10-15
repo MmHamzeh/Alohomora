@@ -117,23 +117,26 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="PasswordChangedNotification" xml:space="preserve">
-    <value>رمز عبور شما با موفقیت تغییر یافت.\n اگر این تغییر توسط شما نبوده، لطفا رمز عبور خود را مجددا تغییر دهید.</value>
+  <data name="AccountLockedMsg" xml:space="preserve">
+    <value>حساب کاربری شما به دلیل تلاش‌های ناموفق برای ورود، قفل شده است.\n لطفا بعد از {0} {1}، مجددا تلاش کنید.</value>
+    <comment>{0} =&gt; {lockoutEnd.ToPersianDateTime().ToShortDateString()} - {1} =&gt; {lockoutEnd.ToPersianDateTime().ToLongTimeString()}</comment>
+  </data>
+  <data name="InvalidLoginNotificationWithIpAddress" xml:space="preserve">
+    <value>تلاش ناموفق برای ورود به حساب کاربری با آی‌پی {0} انجام شد.\n اگر این تلاش توسط شما نبوده، لطفا رمز عبور خود را تغییر دهید.</value>
+    <comment>0} =&gt; {ipAddress}</comment>
   </data>
   <data name="LoginNotificationWithIpAddress" xml:space="preserve">
     <value>ورود به حساب کاربری با آی‌پی {0} انجام شد.\n اگر این ورود توسط شما نبوده، لطفا رمز عبور خود را تغییر دهید.</value>
     <comment>{0} =&gt; {ipAddress}</comment>
   </data>
-  <data name="InvalidLoginNotificationWithIpAddress" xml:space="preserve">
-    <value>تلاش ناموفق برای ورود به حساب کاربری با آی‌پی {0} انجام شد.\n اگر این تلاش توسط شما نبوده، لطفا رمز عبور خود را تغییر دهید.</value>
-    <comment>{0} =&gt; {ipAddress}</comment>
-  </data>
-  <data name="AccountLocked" xml:space="preserve">
-    <value>حساب کاربری شما به دلیل تلاش‌های ناموفق برای ورود، قفل شده است.\n لطفا بعد از {0} {1}، مجددا تلاش کنید.</value>
-    <comment>{0} =&gt; {lockoutEnd.ToPersianDateTime().ToShortDateString()} - {1} =&gt; {lockoutEnd.ToPersianDateTime().ToLongTimeString()}</comment>
+  <data name="OtpEmailSubject" xml:space="preserve">
+    <value>کد تأیید شما برای اپلیکیشن {0}</value>
   </data>
   <data name="OtpMessage" xml:space="preserve">
-    <value>کد {0} را جهت ورود به سامانه وارد کنید.\n #{1}\n {2}-{3}</value>
-    <comment>{0} =&gt; {otp}, {1} =&gt; {otp}, {2} =&gt; {DateTime.Now.ToPersianDateTime().ToShortDateString()}, {3} =&gt; {DateTime.Now.ToPersianDateTime().ToLongTimeString()}</comment>
+    <value>اپلیکیشن {0} \n از در اختیار قراردادن محتوا این پیامک به دیگران خودداری کنید. در صورت عدم درخواست ورود، لطفا این پیام را نادیده بگیرید. \n کد احراز هویت: {1} \n @{2} #{3}</value>
+    <comment>{0} =&gt; application name, {1} =&gt; otp, {2} =&gt; authDomainName, {3} =&gt; otp</comment>
+  </data>
+  <data name="PasswordChangedNotification" xml:space="preserve">
+    <value>رمز عبور شما با موفقیت تغییر یافت.\n اگر این تغییر توسط شما نبوده، لطفا رمز عبور خود را مجددا تغییر دهید.</value>
   </data>
 </root>

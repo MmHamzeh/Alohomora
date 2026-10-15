@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Alohomora.Common.Resources {
+namespace Alohomora.Core.Common.Resources {
     using System;
     
     
@@ -22,7 +22,7 @@ namespace Alohomora.Common.Resources {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class CommonResource {
+    internal class CommonResource {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -39,7 +39,7 @@ namespace Alohomora.Common.Resources {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Alohomora.Services.Resources.CommonResource", typeof(CommonResource).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Alohomora.Core.Common.Resources.CommonResource", typeof(CommonResource).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -61,7 +61,7 @@ namespace Alohomora.Common.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to ApplicationDomain.
+        ///   Looks up a localized string similar to domain.
         /// </summary>
         internal static string ApplicationDomain {
             get {
@@ -70,11 +70,20 @@ namespace Alohomora.Common.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to ApplicationName.
+        ///   Looks up a localized string similar to name.
         /// </summary>
         internal static string ApplicationName {
             get {
                 return ResourceManager.GetString("ApplicationName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to auth domain.
+        /// </summary>
+        internal static string AuthDomainName {
+            get {
+                return ResourceManager.GetString("AuthDomainName", resourceCulture);
             }
         }
     }

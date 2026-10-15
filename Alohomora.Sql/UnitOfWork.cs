@@ -48,9 +48,9 @@ internal class UnitOfWork : IUnitOfWork, IDisposable
 
     #region Methods
 
-    public async Task<int> SaveChanges()
+    public async Task<int> SaveChanges(CancellationToken ct = default)
     {
-        return await _dbContext.SaveChangesAsync();
+        return await _dbContext.SaveChangesAsync(ct);
     }
 
     public void RejectChanges()

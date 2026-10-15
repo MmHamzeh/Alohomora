@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Alohomora.Common.Resources {
+namespace Alohomora.Core.Common.Resources {
     using System;
     
     
@@ -22,7 +22,7 @@ namespace Alohomora.Common.Resources {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class ErrorMessageResource {
+    internal class ErrorMessageResource {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -39,7 +39,7 @@ namespace Alohomora.Common.Resources {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Alohomora.Services.Resources.ErrorMessageResource", typeof(ErrorMessageResource).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Alohomora.Core.Common.Resources.ErrorMessageResource", typeof(ErrorMessageResource).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -61,7 +61,25 @@ namespace Alohomora.Common.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to شناسه کاربری و یا کد یکبار مصرف اشتباه است.
+        ///   Looks up a localized string similar to error.
+        /// </summary>
+        internal static string DuplicateUser {
+            get {
+                return ResourceManager.GetString("DuplicateUser", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to خطا در ارسال رمز یکبار مصرف.
+        /// </summary>
+        internal static string FailedToSendOtp {
+            get {
+                return ResourceManager.GetString("FailedToSendOtp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to error.
         /// </summary>
         internal static string InvalidOtpLoginAttempt {
             get {
@@ -70,7 +88,7 @@ namespace Alohomora.Common.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to شناسه کاربری و یا رمز عبور اشتباه است.
+        ///   Looks up a localized string similar to error.
         /// </summary>
         internal static string InvalidPasswordLoginAttempt {
             get {
@@ -79,7 +97,25 @@ namespace Alohomora.Common.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to شماره موبایل وارد شده، اشتباه است.
+        ///   Looks up a localized string similar to error.
+        /// </summary>
+        internal static string OperationCancelled {
+            get {
+                return ResourceManager.GetString("OperationCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to error.
+        /// </summary>
+        internal static string UserNotFound {
+            get {
+                return ResourceManager.GetString("UserNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to error.
         /// </summary>
         internal static string WrongPhoneNumberFormat {
             get {

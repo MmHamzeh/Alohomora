@@ -42,7 +42,7 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> SendLoginOtp([FromBody] LoginDto dto, CancellationToken ct)
     {
-        var result = await _identityService.SendLoginOtpAsync(dto, ct);
+        var result = await _identityService.SendLoginOtpAsync(dto, createUserIfNotExists: true, ct: ct);
         
         if (!result.Success)
             return BadRequest(result);

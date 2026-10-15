@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Alohomora.Common.Resources {
+namespace Alohomora.Core.Common.Resources {
     using System;
     
     
@@ -22,7 +22,7 @@ namespace Alohomora.Common.Resources {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class IdentityResource {
+    internal class IdentityResource {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -39,7 +39,7 @@ namespace Alohomora.Common.Resources {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Alohomora.Services.Resources.IdentityResource", typeof(IdentityResource).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Alohomora.Core.Common.Resources.IdentityResource", typeof(IdentityResource).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -63,9 +63,9 @@ namespace Alohomora.Common.Resources {
         /// <summary>
         ///   Looks up a localized string similar to حساب کاربری شما به دلیل تلاش‌های ناموفق برای ورود، قفل شده است.\n لطفا بعد از {0} {1}، مجددا تلاش کنید..
         /// </summary>
-        internal static string AccountLocked {
+        internal static string AccountLockedMsg {
             get {
-                return ResourceManager.GetString("AccountLocked", resourceCulture);
+                return ResourceManager.GetString("AccountLockedMsg", resourceCulture);
             }
         }
         
@@ -88,7 +88,16 @@ namespace Alohomora.Common.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to کد {0} را جهت ورود به سامانه وارد کنید.\n #{1}\n {2}-{3}.
+        ///   Looks up a localized string similar to کد تأیید شما برای اپلیکیشن {0}.
+        /// </summary>
+        internal static string OtpEmailSubject {
+            get {
+                return ResourceManager.GetString("OtpEmailSubject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to اپلیکیشن {0} \n از در اختیار قراردادن محتوا این پیامک به دیگران خودداری کنید. در صورت عدم درخواست ورود، لطفا این پیام را نادیده بگیرید. \n کد احراز هویت: {1} \n @{2} #{3}.
         /// </summary>
         internal static string OtpMessage {
             get {

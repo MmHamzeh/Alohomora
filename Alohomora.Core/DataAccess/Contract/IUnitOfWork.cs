@@ -23,7 +23,7 @@ public interface IUnitOfWork
 
     #region Methods
 
-    Task<int> SaveChanges();
+    Task<int> SaveChanges(CancellationToken ct = default);
     void RejectChanges();
 
     #endregion

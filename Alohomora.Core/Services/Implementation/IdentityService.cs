@@ -1,5 +1,6 @@
 ﻿using Alohomora.Core.Common.Configs;
 using Alohomora.Core.Common.Helpers;
+using Alohomora.Core.Common.Resources;
 using Alohomora.Core.DataAccess.Contract;
 using Alohomora.Core.DataAccess.Contract.Repositories;
 using Alohomora.Core.Domain.Enums;
@@ -22,7 +23,7 @@ internal class IdentityService : IIdentityService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISmsService _messageService;
     private readonly IEmailService _emailService;
-    private readonly IEasyCachingProvider _accessTokenCache;
+    private readonly IEasyCachingProvider _accessTokenCacheStore;
 
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IAuthOtpRepository _authOtpRepository;
@@ -43,7 +44,7 @@ internal class IdentityService : IIdentityService
         _passwordHasher = passwordHasher;
         _timeProvider = timeProvider;
 
-        _accessTokenCache = easyCachingProviderFactory.GetCachingProvider(EasyCachingConfigs.AccessTokenIdStoreName);
+        _accessTokenCacheStore = easyCachingProviderFactory.GetCachingProvider(EasyCachingConfigs.AccessTokenIdStoreName);
 
         _refreshTokenRepository = unitOfWork.RefreshTokenRepository;
         _authOtpRepository = unitOfWork.AuthOtpRepository;
@@ -73,25 +74,23 @@ internal class IdentityService : IIdentityService
         if (user is null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
 
-        if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
-            return await FailedPasswordLoginAttempt(user);
-
-        if (user.LockoutEnabled && user.LockoutEnd <= _timeProvider.GetUtcNow())
+        if ((user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow()) ||
+            user.UserStatusId != UserStatusEnm.Active ||
+            user.CanUsePassword is false)
         {
-            user.LockoutEnabled = false;
-            userHasChanged = true;
+            var errorMessage = await FailedPasswordLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
         }
-
-        if (user.UserStatusId != UserStatusEnm.Active)
-            return await FailedPasswordLoginAttempt(user);
-
-        if (user.CanUsePassword is false)
-            return await FailedPasswordLoginAttempt(user);
 
         var passwordVerificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
 
         if (passwordVerificationResult == PasswordVerificationResult.Failed)
-            return await FailedPasswordLoginAttempt(user);
+        {
+            var errorMessage = await FailedPasswordLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
+        }
 
         if (passwordVerificationResult == PasswordVerificationResult.SuccessRehashNeeded)
         {
@@ -99,9 +98,12 @@ internal class IdentityService : IIdentityService
             userHasChanged = true;
         }
 
+        if (userHasChanged)
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+
         var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
 
-        await _accessTokenCache.SetAsync(tokens.AccessTokenId.ToString(),
+        await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
             user.PublicId,
             TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
             ct);
@@ -111,8 +113,8 @@ internal class IdentityService : IIdentityService
                 ? ApplicationConfig.ConfirmPhoneNumberUrl 
                 : ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
 
-        if (userHasChanged)
-            await _unitOfWork.SaveChanges();
+        if (ct.IsCancellationRequested)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
 
         LoginVm loginVm = new()
         {
@@ -125,7 +127,8 @@ internal class IdentityService : IIdentityService
     }
 
 
-    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(LoginDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(LoginDto dto, bool createUserIfNotExists,
+        CancellationToken ct)
     {
         if (string.IsNullOrEmpty(dto.PhoneNumber))
             return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
@@ -137,17 +140,17 @@ internal class IdentityService : IIdentityService
 
         var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: true, ct);
 
-        user ??= await CreateUser(normalizePhoneNumber, ct);
-
+        if (user is null)
+        {
+            if (createUserIfNotExists)
+                user = await CreateUser(normalizePhoneNumber, ct);
+            else
+                return new SingleResponse<LoginVm>(ErrorMessageResource.UserNotFound);
+        }
+        
         var authOtp = await _authOtpRepository.GetValidByPhoneNumber(dto.PhoneNumber, ct);
 
-        if (authOtp is not null)
-        {
-            // Update expiry in-memory; persist only after successful send
-            authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
-            authOtp.IsUsed = false;
-        }
-        else
+        if (authOtp is null)
         {
             var otp = OtpHelper.GenerateAuthOtp();
 
@@ -165,9 +168,15 @@ internal class IdentityService : IIdentityService
 
             // Note: do not persist yet - wait until at least one delivery channel succeeds
         }
+        else
+        {
+            // Update expiry in-memory; persist only after successful send
+            authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
+            authOtp.IsUsed = false;
+        }
 
         // Build message
-        var message = string.Format(IdentityResource.OtpMessage, authOtp.Code, authOtp.Code, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
+        var message = GenerateOtpMessage(authOtp.Code);
 
         // Try sending via SMS
         var smsSent = await SendOtpSms(normalizePhoneNumber, authOtp.Code, ct);
@@ -176,33 +185,40 @@ internal class IdentityService : IIdentityService
         var emailSent = false;
         if (!string.IsNullOrEmpty(user.Email))
         {
-            var subject = $"{CommonResource.ApplicationName} - OTP";
+            var subject = string.Format(IdentityResource.OtpEmailSubject, CommonResource.ApplicationName);
             emailSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
         }
 
         if (!smsSent && !emailSent)
         {
             // Do not persist OTP if we couldn't deliver it
-            return new SingleResponse<LoginVm>("Failed to send OTP. Please try again later.");
+            return new SingleResponse<LoginVm>(string.Format(ErrorMessageResource.FailedToSendOtp));
         }
 
         // Persist OTP (either updated or new)
         if (authOtp.Id == 0)
             await _authOtpRepository.AddAsync(authOtp, ct);
 
-        await _unitOfWork.SaveChanges();
+        await _unitOfWork.SaveChanges(CancellationToken.None);
 
         var response = new SingleResponse<LoginVm>(new LoginVm
         {
             AccessToken = string.Empty, // No access token yet
             RefreshToken = string.Empty, // No refresh token yet
-            ReturnUrl = "/Login-Confirm?returnUrl=" + dto.ReturnUrl,
+            ReturnUrl = string.Format(ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl, dto.ReturnUrl),
         });
 
+        //TODO: Remove this in production. This is only for testing purposes.
         if (ApplicationSetting.ExposeOtpInResponse)
             response.Message = "Otp: " + authOtp.Code;
 
         return response;
+    }
+
+    private static string GenerateOtpMessage(string authOtpCode)
+    {
+        return string.Format(IdentityResource.OtpMessage, ApplicationConfig.ApplicationName, authOtpCode,
+            ApplicationConfig.AuthDomain, authOtpCode);
     }
 
     public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(LoginOtpDto dto, CancellationToken ct)
@@ -221,7 +237,11 @@ internal class IdentityService : IIdentityService
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidOtpLoginAttempt);
 
         if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
-            return await FailedOtpLoginAttempt(user);
+        {
+            var errorMessage = await FailedOtpLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
+        }
 
         if (user.LockoutEnabled && user.LockoutEnd <= _timeProvider.GetUtcNow())
         {
@@ -230,18 +250,20 @@ internal class IdentityService : IIdentityService
         }
 
         if (user.UserStatusId != UserStatusEnm.Active)
-            return await FailedOtpLoginAttempt(user);
+        {
+            var errorMessage = await FailedOtpLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
+        }
 
         var otp = await _authOtpRepository.GetValidByPhoneNumberAndCode(normalizePhoneNumber, dto.AuthOtpCode, ct);
 
-        if (otp is null)
-            return await FailedOtpLoginAttempt(user);
-
-        if (otp.IsUsed)
-            return await FailedOtpLoginAttempt(user);
-
-        if (otp.Expires < _timeProvider.GetUtcNow())
-            return await FailedOtpLoginAttempt(user);
+        if (otp is null || otp.IsUsed || otp.Expires < _timeProvider.GetUtcNow())
+        {
+            var errorMessage = await FailedOtpLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
+        }
 
         otp.IsUsed = true;
 
@@ -251,14 +273,18 @@ internal class IdentityService : IIdentityService
         if (user.AccessFailedCount > 0)
             user.AccessFailedCount = 0;
 
-        await _unitOfWork.SaveChanges();
+        await _unitOfWork.SaveChanges(CancellationToken.None);
 
         var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
 
-        await _accessTokenCache.SetAsync(tokens.AccessTokenId.ToString(),
+        await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
             user.PublicId,
             TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
             ct);
+
+
+        if (ct.IsCancellationRequested)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
 
         LoginVm loginVm = new()
         {
@@ -271,35 +297,40 @@ internal class IdentityService : IIdentityService
     }
 
 
-    public async Task<Response> LogOutAsync()
+    public async Task<LogoutVm> LogOutAsync()
     {
-        string? authHeader = _httpContextAccessor.HttpContext.Request.Headers[HttpRequestHeader.Authorization.ToString()];
+        var logoutResult = new LogoutVm(ApplicationConfig.ApplicationDomain);
+        
+        if (_httpContextAccessor.HttpContext != null)
+        {
+            string? authHeader = _httpContextAccessor.HttpContext.Request.Headers[nameof(HttpRequestHeader.Authorization)];
 
-        if (string.IsNullOrWhiteSpace(authHeader))
-            return new Response();
+            if (string.IsNullOrWhiteSpace(authHeader))
+                return logoutResult;
 
-        var accessTokenId = _tokenHelper.GetAccessTokenId(accessToken: authHeader);
+            var accessTokenId = _tokenHelper.GetAccessTokenId(accessToken: authHeader);
 
-        if (!accessTokenId.HasValue || accessTokenId.Value == Guid.Empty)
-            return new Response();
+            if (!accessTokenId.HasValue || accessTokenId.Value == Guid.Empty)
+                return logoutResult;
 
-        await _refreshTokenRepository.RevokeByAccessTokenId(accessTokenId.Value);
-        await _unitOfWork.SaveChanges();
+            await _refreshTokenRepository.RevokeByAccessTokenId(accessTokenId.Value);
+            await _unitOfWork.SaveChanges();
+        }
 
-        return new Response();
+        return logoutResult;
     }
 
     public async Task<ISingleResponse<LoginVm>> RefreshToken(RefreshRequestDto dto, CancellationToken ct)
     {
         var tokens = await _tokenService.RefreshTokensAsync(dto.AccessToken, dto.RefreshToken, ct);
-        return new SingleResponse<LoginVm>(new LoginVm()
+        return new SingleResponse<LoginVm>(new LoginVm
         {
             AccessToken = tokens.AccessToken,
             RefreshToken = tokens.RefreshToken
         });
     }
 
-    public async Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct)                
     {
         // Validate phone number
         if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
@@ -313,14 +344,14 @@ internal class IdentityService : IIdentityService
         // Check if user already exists
         var existingUser = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: false, ct);
         if (existingUser is not null)
-            return new SingleResponse<LoginVm>("User with this phone number already exists");
+            return new SingleResponse<LoginVm>(ErrorMessageResource.DuplicateUser);
 
         // Create new user
         var user = new User
         {
             PhoneNumber = normalizePhoneNumber,
             UserName = normalizePhoneNumber,
-            Email = dto.Email,
+            Email = dto.Email ?? string.Empty,
             // Default to not confirmed. Email confirmation flow should explicitly confirm the email.
             EmailConfirmed = false,
             PhoneNumberConfirmed = false,
@@ -335,25 +366,20 @@ internal class IdentityService : IIdentityService
         };
 
         await _userRepository.AddAsync(user, ct);
-        await _unitOfWork.SaveChanges();
+        await _unitOfWork.SaveChanges(ct);
 
         // Generate tokens
         var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
 
         // Cache access token
-        await _accessTokenCache.SetAsync(tokens.AccessTokenId.ToString(),
+        await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
             user.PublicId,
             TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
             ct);
 
-        var loginVm = new LoginVm
-        {
-            AccessToken = tokens.AccessToken,
-            RefreshToken = tokens.RefreshToken,
-            ReturnUrl = dto.ReturnUrl
-        };
+        var loginVm = new LoginVm(tokens.AccessToken, tokens.RefreshToken, dto.ReturnUrl);
 
-        return new SingleResponse<LoginVm>(loginVm) { Message = "User registered successfully" };
+        return new SingleResponse<LoginVm>(loginVm) { Message = MessageResource.SuccessfulRegistrationUser };
     }
 
     public async Task<Response> ForgotPasswordAsync(ForgotPasswordDto dto, CancellationToken ct)
@@ -369,7 +395,7 @@ internal class IdentityService : IIdentityService
         var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: false, ct);
 
         if (user is null)
-            return new Response("No user found with this phone number");
+            return new Response(ErrorMessageResource.UserNotFound);
 
         // Check if OTP already exists
         var authOtp = await _authOtpRepository.GetValidByPhoneNumber(normalizePhoneNumber, ct);
@@ -595,73 +621,35 @@ internal class IdentityService : IIdentityService
 
     #region Private Methods
 
-    private async Task<SingleResponse<LoginVm>> FailedOtpLoginAttempt(User user)
-        => await FailedLoginAttempt(user, passwordUsed: false);
+    private async Task<string> FailedOtpLoginAttempt(User user)
+        => await HandleFailedLoginAsync(user, passwordUsed: false);
 
-    private async Task<SingleResponse<LoginVm>> FailedPasswordLoginAttempt(User user)
-        => await FailedLoginAttempt(user, passwordUsed: true);
+    private async Task<string> FailedPasswordLoginAttempt(User user)
+        => await HandleFailedLoginAsync(user, passwordUsed: true);
 
-
-    private async Task<SingleResponse<LoginVm>> FailedLoginAttempt(User user, bool passwordUsed)
+    private async Task<string> HandleFailedLoginAsync(User user, bool passwordUsed, CancellationToken cancellationToken = default)
     {
-        if (user.LockoutEnabled)
-        {
-            ++user.AccessFailedCount;
+        var utcNow = _timeProvider.GetUtcNow();
 
-            user.LockoutEnd = user.AccessFailedCount switch
-            {
-                >= 5 and < 10 => _timeProvider.GetUtcNow().DateTime.AddMinutes(15),
-                >= 10 and < 15 => _timeProvider.GetUtcNow().DateTime.AddMinutes(60),
-                >= 15 => _timeProvider.GetUtcNow().DateTime.AddDays(1),
-                _ => user.LockoutEnd
-            };
+        RegisterFailedLoginAttempt(user);
+        _ = await _unitOfWork.SaveChanges(cancellationToken);
 
-            await _unitOfWork.SaveChanges();
-        }
-
-        string errorMessage;
-        string timeToDisableLockoutMessage;
-        var lockoutTotalMinutes = (user.LockoutEnd! - _timeProvider.GetUtcNow()).Value.TotalMinutes;
-        var lockoutTotalHours = (user.LockoutEnd! - _timeProvider.GetUtcNow()).Value.TotalHours;
-
-        if (lockoutTotalMinutes < 60)
-            timeToDisableLockoutMessage = lockoutTotalMinutes + 1 + " دقیقه،";
-
-        else if (lockoutTotalMinutes > 60 && lockoutTotalHours < 24)
-        {
-            if (lockoutTotalMinutes % 60 == 0)
-                timeToDisableLockoutMessage = lockoutTotalHours + " ساعت،";
-            else
-                timeToDisableLockoutMessage = lockoutTotalHours + "ساعت و " + lockoutTotalMinutes % 60 + " دقیقه، ";
-        }
-        else
-        {
-            var lockoutTotalDays = (user.LockoutEnd! - _timeProvider.GetUtcNow()).Value.TotalDays;
-
-
-            if (lockoutTotalHours % 24 == 0 && lockoutTotalMinutes % (24 * 60) == 0)
-                timeToDisableLockoutMessage = lockoutTotalDays + " روز،";
-            else if (lockoutTotalHours % 24 > 0 && lockoutTotalMinutes % (24 * 60) == 0)
-                timeToDisableLockoutMessage = lockoutTotalHours + " ساعت،";
-            else if (lockoutTotalHours % 24 == 0 && lockoutTotalMinutes % (24 * 60) > 0)
-                timeToDisableLockoutMessage = lockoutTotalHours + " ساعت،";
-            else
-                timeToDisableLockoutMessage = lockoutTotalHours + "ساعت و " + lockoutTotalMinutes % 60 + " دقیقه، ";
-        }
-
-
-        if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
-            errorMessage = "حساب کاربری شما قفل شده است. لطفا بعد از " + timeToDisableLockoutMessage + " مجددا تلاش کنید";
-        //else if (user.UserStatusId != UserStatusEnm.Active)
-        //    errorMessage = "حساب شما ";
-        else if (passwordUsed)
-            errorMessage = ErrorMessageResource.InvalidPasswordLoginAttempt;
-        else
-            errorMessage = ErrorMessageResource.InvalidOtpLoginAttempt;
-
-        return new SingleResponse<LoginVm>(errorMessage);
-
+        return ResolveFailedLoginMessage(user, passwordUsed, utcNow);
     }
+
+    private string ResolveFailedLoginMessage(User user, bool passwordUsed, DateTimeOffset utcNow)
+    {
+        if (IsLockedOut(user))
+        {
+            var remainingTime = (user.LockoutEnd!.Value - utcNow).ToPersianRemainingTime();
+            return $"حساب کاربری شما قفل شده است. لطفا بعد از {remainingTime} مجددا تلاش کنید.";
+        }
+
+        return passwordUsed
+            ? ErrorMessageResource.InvalidPasswordLoginAttempt
+            : ErrorMessageResource.InvalidOtpLoginAttempt;
+    }
+
 
     private async Task<User> CreateUser(string phoneNumber, CancellationToken ct)
     {
@@ -673,13 +661,14 @@ internal class IdentityService : IIdentityService
             UserStatusId = UserStatusEnm.Active,
             PhoneNumberConfirmed = false,
             LockoutEnabled = true,
+            LockoutEnd = null,
             AccessFailedCount = 0,
             PublicId = Guid.CreateVersion7(),
             UserName = phoneNumber,
             CreatedOn = _timeProvider.GetUtcNow().DateTime
         };
         await _userRepository.AddAsync(user, ct);
-        await _unitOfWork.SaveChanges();
+        await _unitOfWork.SaveChanges(CancellationToken.None);
         return user;
     }
 
@@ -711,9 +700,30 @@ internal class IdentityService : IIdentityService
 
     private async Task<bool> SendAccountLockedNotification(string phoneNumber, DateTime lockoutEnd)
     {
-        var message = $"{CommonResource.ApplicationName}\n" + string.Format(IdentityResource.AccountLocked, lockoutEnd.ToPersianDateTime().ToShortDateString(), lockoutEnd.ToPersianDateTime().ToLongTimeString());
+        var message = string.Format(IdentityResource.AccountLockedMsg,
+            lockoutEnd.ToPersianDateTime().ToShortDateString(), lockoutEnd.ToPersianDateTime().ToLongTimeString());
         return await _messageService.SendMessageAsync(phoneNumber, message);
     }
+
+    private void RegisterFailedLoginAttempt(User user)
+    {
+        if (!user.LockoutEnabled) return;
+
+        user.AccessFailedCount++;
+
+        var utcNow = _timeProvider.GetUtcNow();
+
+        user.LockoutEnd = user.AccessFailedCount switch
+        {
+            >= 15 => utcNow.AddDays(1).DateTime,
+            >= 10 => utcNow.AddHours(1).DateTime,
+            >= 5 => utcNow.AddMinutes(15).DateTime,
+            _ => user.LockoutEnd
+        };
+    }
+
+    private bool IsLockedOut(User user)
+        => user is { LockoutEnabled: true, LockoutEnd: not null } && user.LockoutEnd.Value > _timeProvider.GetUtcNow();
 
     #endregion
 
