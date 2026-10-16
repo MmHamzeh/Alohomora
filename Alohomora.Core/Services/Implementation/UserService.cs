@@ -29,7 +29,7 @@ public class UserService : IUserService
     /// Gets the current authenticated user's public ID from the JWT token claims
     /// </summary>
     /// <returns>The user's public ID as a Guid, or Guid.Empty if not authenticated</returns>
-    public Guid CurrentUserId
+    public Guid? CurrentUserId
     {
         get
         {
@@ -44,7 +44,7 @@ public class UserService : IUserService
             if (userIdClaim == null || string.IsNullOrEmpty(userIdClaim.Value))
                 return Guid.Empty;
 
-            return Guid.TryParse(userIdClaim.Value, out var userId) ? userId : Guid.Empty;
+            return Guid.TryParse(userIdClaim.Value, out var userId) ? userId : null;
         }
     }
 }

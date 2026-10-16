@@ -16,18 +16,12 @@ internal abstract class DatabaseContextHelper
     {
         get
         {
-            //m.hafezi
-            if (string.Equals(Environment.MachineName, "DESKTOP-M48MB88", StringComparison.CurrentCultureIgnoreCase))
-                return "Data Source=.;Initial Catalog=AlohomoraDb;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False";
-
-
-            //m.hamzeh
             if (string.Equals(Environment.MachineName, "MEYTOL_PC", StringComparison.CurrentCultureIgnoreCase))
-                return "Data Source=.;Initial Catalog=VakilAuthDb;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False";
+                return "Server=localhost;Database=YourDatabase;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;";
 
 
             if (ApplicationSetting.IsDebugMode)
-                return "";
+                return "Server=localhost;Database=YourDatabase;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;";
             else
                 return "";
         }

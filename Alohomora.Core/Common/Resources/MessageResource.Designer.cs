@@ -63,6 +63,15 @@ namespace Alohomora.Core.Common.Resources {
         /// <summary>
         ///   Looks up a localized string similar to msg.
         /// </summary>
+        internal static string ResetPasswordMsg {
+            get {
+                return ResourceManager.GetString("ResetPasswordMsg", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to msg.
+        /// </summary>
         internal static string SuccessfulRegistrationUser {
             get {
                 return ResourceManager.GetString("SuccessfulRegistrationUser", resourceCulture);

@@ -24,9 +24,4 @@ public interface IIdentityService
     Task<Response> ForgotPasswordAsync(ForgotPasswordDto dto, CancellationToken ct);
     Task<Response> ResetPasswordAsync(ResetPasswordDto dto, CancellationToken ct);
 
-    // Role Management
-    Task<Response> CreateRoleAsync(CreateRoleDto dto, CancellationToken ct);
-    Task<Response> AssignRoleToUserAsync(AssignRoleToUserDto dto, CancellationToken ct);
-    Task<Response> RemoveRoleFromUserAsync(RemoveRoleFromUserDto dto, CancellationToken ct);
-    Task<ISingleResponse<List<string>>> GetUserRolesAsync(Guid userId, CancellationToken ct);
 }

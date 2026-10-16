@@ -5,7 +5,7 @@ namespace Alohomora.Core.Domain.Models.DtoModels;
 /// <summary>
 /// Data transfer object for user registration with password
 /// </summary>
-public class RegisterUserDto : IDto
+public sealed class RegisterUserDto : IDto
 {
     /// <summary>
     /// User's phone number (required)

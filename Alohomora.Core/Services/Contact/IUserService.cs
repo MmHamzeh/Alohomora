@@ -2,5 +2,5 @@
 
 public interface IUserService
 {
-    Guid CurrentUserId { get; }
+    Guid? CurrentUserId { get; }
 }

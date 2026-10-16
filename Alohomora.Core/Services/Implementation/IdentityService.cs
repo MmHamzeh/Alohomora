@@ -28,8 +28,6 @@ internal class IdentityService : IIdentityService
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IAuthOtpRepository _authOtpRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IRoleRepository _roleRepository;
-    private readonly IUserRoleRepository _userRoleRepository;
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly TimeProvider _timeProvider;
 
@@ -49,9 +47,6 @@ internal class IdentityService : IIdentityService
         _refreshTokenRepository = unitOfWork.RefreshTokenRepository;
         _authOtpRepository = unitOfWork.AuthOtpRepository;
         _userRepository = unitOfWork.UserRepository;
-        _roleRepository = unitOfWork.RoleRepository;
-        _userRoleRepository = unitOfWork.UserRoleRepository;
-
     }
 
     #endregion
@@ -109,8 +104,8 @@ internal class IdentityService : IIdentityService
             ct);
 
         if (user.PhoneNumberConfirmed is false)
-            dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl) 
-                ? ApplicationConfig.ConfirmPhoneNumberUrl 
+            dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl)
+                ? ApplicationConfig.ConfirmPhoneNumberUrl
                 : ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
 
         if (ct.IsCancellationRequested)
@@ -147,7 +142,7 @@ internal class IdentityService : IIdentityService
             else
                 return new SingleResponse<LoginVm>(ErrorMessageResource.UserNotFound);
         }
-        
+
         var authOtp = await _authOtpRepository.GetValidByPhoneNumber(dto.PhoneNumber, ct);
 
         if (authOtp is null)
@@ -215,11 +210,6 @@ internal class IdentityService : IIdentityService
         return response;
     }
 
-    private static string GenerateOtpMessage(string authOtpCode)
-    {
-        return string.Format(IdentityResource.OtpMessage, ApplicationConfig.ApplicationName, authOtpCode,
-            ApplicationConfig.AuthDomain, authOtpCode);
-    }
 
     public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(LoginOtpDto dto, CancellationToken ct)
     {
@@ -300,7 +290,7 @@ internal class IdentityService : IIdentityService
     public async Task<LogoutVm> LogOutAsync()
     {
         var logoutResult = new LogoutVm(ApplicationConfig.ApplicationDomain);
-        
+
         if (_httpContextAccessor.HttpContext != null)
         {
             string? authHeader = _httpContextAccessor.HttpContext.Request.Headers[nameof(HttpRequestHeader.Authorization)];
@@ -330,43 +320,43 @@ internal class IdentityService : IIdentityService
         });
     }
 
-    public async Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct)                
+    public async Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct)
     {
-        // Validate phone number
-        if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
-            return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
-
         var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
 
         if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
             return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
 
-        // Check if user already exists
         var existingUser = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: false, ct);
+        
         if (existingUser is not null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.DuplicateUser);
 
-        // Create new user
         var user = new User
         {
             PhoneNumber = normalizePhoneNumber,
             UserName = normalizePhoneNumber,
             Email = dto.Email ?? string.Empty,
-            // Default to not confirmed. Email confirmation flow should explicitly confirm the email.
             EmailConfirmed = false,
             PhoneNumberConfirmed = false,
-            PasswordHash = _passwordHasher.HashPassword(new User(), dto.Password),
             CanUsePassword = true,
             UserStatusId = UserStatusEnm.Active,
-            LockoutEnabled = true,
-            AccessFailedCount = 0,
             PublicId = Guid.CreateVersion7(),
             CreatedOn = _timeProvider.GetUtcNow().DateTime,
-            TwoFactorEnabled = false
+            TwoFactorEnabled = false,
+            LockoutEnabled = true,
+            AccessFailedCount = 0,
+            LockoutEnd = null
         };
 
         await _userRepository.AddAsync(user, ct);
         await _unitOfWork.SaveChanges(ct);
+
+        if (!(string.IsNullOrWhiteSpace(dto.Password)))
+        {
+            user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+        }
 
         // Generate tokens
         var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
@@ -404,7 +394,7 @@ internal class IdentityService : IIdentityService
         {
             // Update existing OTP in-memory
             authOtp.Code = OtpHelper.GenerateAuthOtp();
-            authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
+            authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(ApplicationSetting.OtpExpirationMinutes);
             authOtp.IsUsed = false;
         }
         else
@@ -415,7 +405,7 @@ internal class IdentityService : IIdentityService
             {
                 PublicId = Guid.CreateVersion7(),
                 Code = otp,
-                Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5),
+                Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(ApplicationSetting.OtpExpirationMinutes),
                 IsUsed = false,
                 UserId = user.Id,
                 UserPhoneNumber = user.PhoneNumber,
@@ -424,9 +414,7 @@ internal class IdentityService : IIdentityService
         }
 
         // Build message
-        var message = $"{CommonResource.ApplicationName}\n" +
-                      $"کد بازیابی رمز عبور شما: {authOtp.Code}\n" +
-                      $"این کد تا 5 دقیقه معتبر است.";
+        var message = GenerateOtpMessage(authOtp.Code);
 
         // Try sending via SMS
         var smsSent = await _messageService.SendMessageAsync(normalizePhoneNumber, message, ct);
@@ -435,21 +423,22 @@ internal class IdentityService : IIdentityService
         var emailSent = false;
         if (!string.IsNullOrEmpty(user.Email))
         {
-            var subject = $"{CommonResource.ApplicationName} - Password Reset Code";
+            var subject = string.Format(IdentityResource.OtpEmailSubject, CommonResource.ApplicationName);
             emailSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
         }
 
         if (!smsSent && !emailSent)
-            return new Response("Failed to send password reset code. Please try again later.");
+            return new Response(string.Format(ErrorMessageResource.FailedToSendOtp));
 
         // Persist OTP only after successful delivery
         if (authOtp.Id == 0)
             await _authOtpRepository.AddAsync(authOtp, ct);
 
-        await _unitOfWork.SaveChanges();
+        await _unitOfWork.SaveChanges(CancellationToken.None);
 
-        var response = new Response("Password reset code sent successfully");
+        var response = new Response(MessageResource.ResetPasswordMsg);
 
+        //TODO: Remove this in production. This is only for testing purposes.
         if (ApplicationSetting.ExposeOtpInResponse)
             response.Message = $"OTP: {authOtp.Code}";
 
@@ -469,13 +458,13 @@ internal class IdentityService : IIdentityService
         var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: true, ct);
 
         if (user is null)
-            return new Response("No user found with this phone number");
+            return new Response(ErrorMessageResource.UserNotFound);
 
         // Validate OTP
         var otp = await _authOtpRepository.GetValidByPhoneNumberAndCode(normalizePhoneNumber, dto.OtpCode, ct);
 
         if (otp is null || otp.IsUsed || otp.Expires < _timeProvider.GetUtcNow())
-            return new Response("Invalid or expired OTP code");
+            return new Response(ErrorMessageResource.InvalidOtpLoginAttempt);
 
         // Mark OTP as used
         otp.IsUsed = true;
@@ -487,131 +476,13 @@ internal class IdentityService : IIdentityService
         user.LockoutEnabled = false;
         user.LockoutEnd = null;
 
-        await _unitOfWork.SaveChanges();
+        await _unitOfWork.SaveChanges(CancellationToken.None);
 
         // Send password change notification
         await SendPasswordChangedNotification(user.PhoneNumber);
 
         return new Response("Password reset successfully");
     }
-
-    public async Task<Response> CreateRoleAsync(CreateRoleDto dto, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(dto.Name))
-            return new Response("Role name is required");
-
-        if (string.IsNullOrWhiteSpace(dto.FaName))
-            return new Response("Role Persian name is required");
-
-        // Check if role already exists
-        var roleExists = await _roleRepository.ExistsByName(dto.Name, ct);
-
-        if (roleExists)
-            return new Response("Role with this name already exists");
-
-        var role = new Role
-        {
-            PublicId = Guid.CreateVersion7(),
-            Name = dto.Name,
-            FaName = dto.FaName,
-            Description = dto.Description ?? string.Empty,
-            CreatedOn = _timeProvider.GetUtcNow().DateTime
-        };
-
-        await _roleRepository.AddAsync(role, ct);
-        await _unitOfWork.SaveChanges();
-
-        return new Response("Role created successfully");
-    }
-
-    public async Task<Response> AssignRoleToUserAsync(AssignRoleToUserDto dto, CancellationToken ct)
-    {
-        if (dto.UserId == Guid.Empty)
-            return new Response("User ID is required");
-
-        if (string.IsNullOrWhiteSpace(dto.RoleName))
-            return new Response("Role name is required");
-
-        // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(dto.UserId, enableTracking: false, ct);
-        if (user is null)
-            return new Response("User not found");
-
-        // Find role by name
-        var role = await _roleRepository.GetByName(dto.RoleName, enableTracking: false, ct);
-
-        if (role is null)
-            return new Response("Role not found");
-
-        // Check if user already has this role
-        var existingUserRole = await _userRoleRepository.ExistsByUserIdRoleId(user.Id, role.Id, ct);
-
-        if (existingUserRole is not false)
-            return new Response("User already has this role");
-
-        // Assign role to user
-        var userRole = new UserRole
-        {
-            PublicId = Guid.CreateVersion7(),
-            UserId = user.Id,
-            RoleId = role.Id,
-            CreatedOn = _timeProvider.GetUtcNow().DateTime
-        };
-
-        await _userRoleRepository.AddAsync(userRole, ct);
-        await _unitOfWork.SaveChanges();
-
-        return new Response("Role assigned to user successfully");
-    }
-
-    public async Task<Response> RemoveRoleFromUserAsync(RemoveRoleFromUserDto dto, CancellationToken ct)
-    {
-        if (dto.UserId == Guid.Empty)
-            return new Response("User ID is required");
-
-        if (string.IsNullOrWhiteSpace(dto.RoleName))
-            return new Response("Role name is required");
-
-        // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(dto.UserId, enableTracking: false, ct);
-        if (user is null)
-            return new Response("User not found");
-
-        // Find role by name
-        var role = await _roleRepository.GetByName(dto.RoleName, enableTracking: false, ct);
-
-        if (role is null)
-            return new Response("Role not found");
-
-        // Find user-role relationship
-        var userRole = await _userRoleRepository.GetByUserIdRoleId(user.Id, role.Id, enableTracking: true, ct);
-
-        if (userRole is null)
-            return new Response("User does not have this role");
-
-        // Remove role from user
-        _userRoleRepository.Remove(userRole);
-        await _unitOfWork.SaveChanges();
-
-        return new Response("Role removed from user successfully");
-    }
-
-    public async Task<ISingleResponse<List<string>>> GetUserRolesAsync(Guid userId, CancellationToken ct)
-    {
-        if (userId == Guid.Empty)
-            return new SingleResponse<List<string>>("User ID is required");
-
-        // Find user by PublicId
-        var user = await _userRepository.GetByIdAsync(userId, enableTracking: false, ct);
-        if (user is null)
-            return new SingleResponse<List<string>>("User not found");
-
-        // Get user roles
-        var roles = await _roleRepository.GetUserRolesName(user.Id);
-
-        return new SingleResponse<List<string>>(roles.ToList());
-    }
-
 
 
 
@@ -620,6 +491,13 @@ internal class IdentityService : IIdentityService
 
 
     #region Private Methods
+
+
+    private static string GenerateOtpMessage(string authOtpCode)
+    {
+        return string.Format(IdentityResource.OtpMessage, ApplicationConfig.ApplicationName, authOtpCode,
+            ApplicationConfig.AuthDomain, authOtpCode);
+    }
 
     private async Task<string> FailedOtpLoginAttempt(User user)
         => await HandleFailedLoginAsync(user, passwordUsed: false);
