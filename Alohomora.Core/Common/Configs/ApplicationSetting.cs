@@ -16,7 +16,5 @@ public static class ApplicationSetting
 
     public const string RsaKeysDirectory = "rsa-keys";
 
-    public const int AccessTokenExpirationMinutes = 10;
-    public const int OtpExpirationMinutes = 5;
 
 }

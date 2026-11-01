@@ -1,12 +1,12 @@
 namespace Alohomora.Core.Common.Configs;
 
-public class JwtSettings
+public static class JwtSettings
 {
     public const string SectionName = "Jwt";
 
-    public string Issuer { get; set; } = ApplicationConfig.AuthDomain;
-    public string Audience { get; set; } = ApplicationConfig.ApiDomain;
-    public string SecretKey { get; set; } = string.Empty;
-    public bool UseRsa { get; set; } = false;
-    public int AccessTokenExpirationMinutes { get; set; } = ApplicationSetting.AccessTokenExpirationMinutes;
+    public static string Issuer { get; set; } = ApplicationConfig.AuthDomain;
+    public static string Audience { get; set; } = ApplicationConfig.ApiDomain;
+    public static string SecretKey { get; set; } = string.Empty;
+    public static bool UseRsa { get; set; } = false;
+    public static int AccessTokenExpirationMinutes { get; set; } = ApplicationConfig.AccessTokenExpirationMinutes;
 }

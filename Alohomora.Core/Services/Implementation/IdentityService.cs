@@ -51,79 +51,9 @@ internal class IdentityService : IIdentityService
 
     #endregion
 
+    #region Send Login Otp
 
-    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(LoginPasswordDto dto, CancellationToken ct)
-    {
-        var userHasChanged = false;
-
-        if (string.IsNullOrWhiteSpace(dto.PhoneNumber) || string.IsNullOrWhiteSpace(dto.Password))
-            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
-
-        var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
-
-        if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
-            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
-
-        var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: true, ct);
-
-        if (user is null)
-            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
-
-        if ((user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow()) ||
-            user.UserStatusId != UserStatusEnm.Active ||
-            user.CanUsePassword is false)
-        {
-            var errorMessage = await FailedPasswordLoginAttempt(user);
-            await _unitOfWork.SaveChanges(CancellationToken.None);
-            return new SingleResponse<LoginVm>(errorMessage);
-        }
-
-        var passwordVerificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
-
-        if (passwordVerificationResult == PasswordVerificationResult.Failed)
-        {
-            var errorMessage = await FailedPasswordLoginAttempt(user);
-            await _unitOfWork.SaveChanges(CancellationToken.None);
-            return new SingleResponse<LoginVm>(errorMessage);
-        }
-
-        if (passwordVerificationResult == PasswordVerificationResult.SuccessRehashNeeded)
-        {
-            user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
-            userHasChanged = true;
-        }
-
-        if (userHasChanged)
-            await _unitOfWork.SaveChanges(CancellationToken.None);
-
-        var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
-
-        await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
-            user.PublicId,
-            TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
-            ct);
-
-        if (user.PhoneNumberConfirmed is false)
-            dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl)
-                ? ApplicationConfig.ConfirmPhoneNumberUrl
-                : ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
-
-        if (ct.IsCancellationRequested)
-            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
-
-        LoginVm loginVm = new()
-        {
-            AccessToken = tokens.AccessToken,
-            RefreshToken = tokens.RefreshToken,
-            ReturnUrl = dto.ReturnUrl
-        };
-
-        return new SingleResponse<LoginVm>(loginVm);
-    }
-
-
-    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(LoginDto dto, bool createUserIfNotExists,
-        CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(LoginDto dto, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(dto.PhoneNumber))
             return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
@@ -137,7 +67,7 @@ internal class IdentityService : IIdentityService
 
         if (user is null)
         {
-            if (createUserIfNotExists)
+            if (ApplicationConfig.CreateUserIfNotExists)
                 user = await CreateUser(normalizePhoneNumber, ct);
             else
                 return new SingleResponse<LoginVm>(ErrorMessageResource.UserNotFound);
@@ -210,6 +140,94 @@ internal class IdentityService : IIdentityService
         return response;
     }
 
+
+
+
+    private static string GenerateOtpMessage(string authOtpCode)
+    {
+        return string.Format(IdentityResource.OtpMessage, ApplicationConfig.ApplicationName, authOtpCode,
+            ApplicationConfig.AuthDomain, authOtpCode);
+    }
+
+    
+    private async Task<bool> SendOtpSms(string phoneNumber, string otp, CancellationToken ct = default)
+    {
+        var message = $"{CommonResource.ApplicationName}\n" +
+                      string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
+
+        return await _messageService.SendMessageAsync(phoneNumber, message, ct);
+    }
+
+    #endregion
+
+    #region Login
+
+    #region  Login Password
+
+    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(PhoneNumberLoginPasswordDto dto, CancellationToken ct)
+    {
+        var userHasChanged = false;
+
+        if (string.IsNullOrWhiteSpace(dto.PhoneNumber) || string.IsNullOrWhiteSpace(dto.Password))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
+
+        if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: true, ct);
+
+        if (user is null)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        return LoginPasswordAsync(user, LoginMethodEnm.PhoneNumber);
+    }
+
+
+
+    private async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(User user, LoginMethodEnm loginMethod, LoginDto dto, CancellationToken ct)
+    {
+        if ((user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow()) ||
+            user.UserStatusId != UserStatusEnm.Active ||
+            user.CanUsePassword is false)
+        {
+            var errorMessage = await FailedPasswordLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
+        }
+
+        var passwordVerificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
+
+        if (passwordVerificationResult == PasswordVerificationResult.Failed)
+        {
+            var errorMessage = await FailedPasswordLoginAttempt(user);
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+            return new SingleResponse<LoginVm>(errorMessage);
+        }
+
+        if (passwordVerificationResult == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
+            userHasChanged = true;
+        }
+
+        if (userHasChanged)
+            await _unitOfWork.SaveChanges(CancellationToken.None);
+
+        if (ct.IsCancellationRequested)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
+
+        return LoginAsync(user, loginMethod, dto)
+    }
+
+    
+    private async Task<string> FailedPasswordLoginAttempt(User user)
+        => await HandleFailedLoginAsync(user, passwordUsed: true);
+
+    #endregion
+
+    #region Confirm OTP and login
 
     public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(LoginOtpDto dto, CancellationToken ct)
     {
@@ -286,29 +304,122 @@ internal class IdentityService : IIdentityService
         return new SingleResponse<LoginVm>(loginVm);
     }
 
+    
 
-    public async Task<LogoutVm> LogOutAsync()
+    private async Task<string> FailedOtpLoginAttempt(User user)
+        => await HandleFailedLoginAsync(user, passwordUsed: false);
+
+    #endregion
+
+
+    private async Task<ISingleResponse<LoginVm>> LoginAsync(User user, LoginMethodEnm loginMethod, LoginDto dto)
     {
-        var logoutResult = new LogoutVm(ApplicationConfig.ApplicationDomain);
+        var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
+       
+        if (loginMethod == LoginMethod.PhoneNumber && user.PhoneNumberConfirmed is false)
+            dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl)
+                ? ApplicationConfig.ConfirmPhoneNumberUrl
+                : ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
 
-        if (_httpContextAccessor.HttpContext != null)
+        if (loginMethod == LoginMethod.Email && user.EmailConfirmed is false)
+            dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl)
+                ? ApplicationConfig.ConfirmEmailUrl
+                : ApplicationConfig.ConfirmEmailUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
+
+        if (ct.IsCancellationRequested)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
+
+        await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
+            user.PublicId,
+            TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
+            ct);
+
+        LoginVm loginVm = new()
         {
-            string? authHeader = _httpContextAccessor.HttpContext.Request.Headers[nameof(HttpRequestHeader.Authorization)];
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            ReturnUrl = dto.ReturnUrl
+        };
 
-            if (string.IsNullOrWhiteSpace(authHeader))
-                return logoutResult;
+        return new SingleResponse<LoginVm>(loginVm);
+    }
 
-            var accessTokenId = _tokenHelper.GetAccessTokenId(accessToken: authHeader);
+    
+    private async Task<string> HandleFailedLoginAsync(User user, bool passwordUsed, CancellationToken cancellationToken = default)
+    {
+        var utcNow = _timeProvider.GetUtcNow();
 
-            if (!accessTokenId.HasValue || accessTokenId.Value == Guid.Empty)
-                return logoutResult;
+        RegisterFailedLoginAttempt(user);
+        _ = await _unitOfWork.SaveChanges(cancellationToken);
 
-            await _refreshTokenRepository.RevokeByAccessTokenId(accessTokenId.Value);
-            await _unitOfWork.SaveChanges();
+        return ResolveFailedLoginMessage(user, passwordUsed, utcNow);
+    }
+
+    private string ResolveFailedLoginMessage(User user, bool passwordUsed, DateTimeOffset utcNow)
+    {
+        if (IsLockedOut(user))
+        {
+            var remainingTime = (user.LockoutEnd!.Value - utcNow).ToPersianRemainingTime();
+            return $"حساب کاربری شما قفل شده است. لطفا بعد از {remainingTime} مجددا تلاش کنید.";
         }
 
-        return logoutResult;
+        return passwordUsed
+            ? ErrorMessageResource.InvalidPasswordLoginAttempt
+            : ErrorMessageResource.InvalidOtpLoginAttempt;
     }
+
+    
+    private void RegisterFailedLoginAttempt(User user)
+    {
+        if (!user.LockoutEnabled) return;
+
+        user.AccessFailedCount++;
+
+        var utcNow = _timeProvider.GetUtcNow();
+
+        user.LockoutEnd = user.AccessFailedCount switch
+        {
+            >= 15 => utcNow.AddDays(1).DateTime,
+            >= 10 => utcNow.AddHours(1).DateTime,
+            >= 5 => utcNow.AddMinutes(15).DateTime,
+            _ => user.LockoutEnd
+        };
+    }
+
+    private bool IsLockedOut(User user)
+        => user is { LockoutEnabled: true, LockoutEnd: not null } && user.LockoutEnd.Value > _timeProvider.GetUtcNow();
+
+
+    #endregion
+
+    #region Logout
+
+    public async Task<LogoutVm> LogOutAsync()
+        {
+            var logoutResult = new LogoutVm(ApplicationConfig.ApplicationDomain);
+
+            if (_httpContextAccessor.HttpContext != null)
+            {
+                string? authHeader = _httpContextAccessor.HttpContext.Request.Headers[nameof(HttpRequestHeader.Authorization)];
+
+                if (string.IsNullOrWhiteSpace(authHeader))
+                    return logoutResult;
+
+                var accessTokenId = _tokenHelper.GetAccessTokenId(accessToken: authHeader);
+
+                if (!accessTokenId.HasValue || accessTokenId.Value == Guid.Empty)
+                    return logoutResult;
+
+                await _refreshTokenRepository.RevokeByAccessTokenId(accessTokenId.Value);
+                await _unitOfWork.SaveChanges();
+            }
+
+            return logoutResult;
+        }
+
+    #endregion
+
+    #region RefreshToken
 
     public async Task<ISingleResponse<LoginVm>> RefreshToken(RefreshRequestDto dto, CancellationToken ct)
     {
@@ -319,6 +430,10 @@ internal class IdentityService : IIdentityService
             RefreshToken = tokens.RefreshToken
         });
     }
+
+    #endregion
+
+    #region Register User
 
     public async Task<ISingleResponse<LoginVm>> RegisterUserAsync(RegisterUserDto dto, CancellationToken ct)
     {
@@ -371,6 +486,31 @@ internal class IdentityService : IIdentityService
 
         return new SingleResponse<LoginVm>(loginVm) { Message = MessageResource.SuccessfulRegistrationUser };
     }
+
+    private async Task<User> CreateUser(string phoneNumber, CancellationToken ct)
+    {
+        var user = new User
+        {
+            PhoneNumber = phoneNumber,
+            PasswordHash = string.Empty, // Password will be set later
+            CanUsePassword = false,
+            UserStatusId = UserStatusEnm.Active,
+            PhoneNumberConfirmed = false,
+            LockoutEnabled = true,
+            LockoutEnd = null,
+            AccessFailedCount = 0,
+            PublicId = Guid.CreateVersion7(),
+            UserName = phoneNumber,
+            CreatedOn = _timeProvider.GetUtcNow().DateTime
+        };
+        await _userRepository.AddAsync(user, ct);
+        await _unitOfWork.SaveChanges(CancellationToken.None);
+        return user;
+    }
+
+    #endregion
+
+    #region ResetPassword
 
     public async Task<Response> ForgotPasswordAsync(ForgotPasswordDto dto, CancellationToken ct)
     {
@@ -484,79 +624,9 @@ internal class IdentityService : IIdentityService
         return new Response("Password reset successfully");
     }
 
+    #endregion
 
-
-
-
-
-
-    #region Private Methods
-
-
-    private static string GenerateOtpMessage(string authOtpCode)
-    {
-        return string.Format(IdentityResource.OtpMessage, ApplicationConfig.ApplicationName, authOtpCode,
-            ApplicationConfig.AuthDomain, authOtpCode);
-    }
-
-    private async Task<string> FailedOtpLoginAttempt(User user)
-        => await HandleFailedLoginAsync(user, passwordUsed: false);
-
-    private async Task<string> FailedPasswordLoginAttempt(User user)
-        => await HandleFailedLoginAsync(user, passwordUsed: true);
-
-    private async Task<string> HandleFailedLoginAsync(User user, bool passwordUsed, CancellationToken cancellationToken = default)
-    {
-        var utcNow = _timeProvider.GetUtcNow();
-
-        RegisterFailedLoginAttempt(user);
-        _ = await _unitOfWork.SaveChanges(cancellationToken);
-
-        return ResolveFailedLoginMessage(user, passwordUsed, utcNow);
-    }
-
-    private string ResolveFailedLoginMessage(User user, bool passwordUsed, DateTimeOffset utcNow)
-    {
-        if (IsLockedOut(user))
-        {
-            var remainingTime = (user.LockoutEnd!.Value - utcNow).ToPersianRemainingTime();
-            return $"حساب کاربری شما قفل شده است. لطفا بعد از {remainingTime} مجددا تلاش کنید.";
-        }
-
-        return passwordUsed
-            ? ErrorMessageResource.InvalidPasswordLoginAttempt
-            : ErrorMessageResource.InvalidOtpLoginAttempt;
-    }
-
-
-    private async Task<User> CreateUser(string phoneNumber, CancellationToken ct)
-    {
-        var user = new User
-        {
-            PhoneNumber = phoneNumber,
-            PasswordHash = string.Empty, // Password will be set later
-            CanUsePassword = false,
-            UserStatusId = UserStatusEnm.Active,
-            PhoneNumberConfirmed = false,
-            LockoutEnabled = true,
-            LockoutEnd = null,
-            AccessFailedCount = 0,
-            PublicId = Guid.CreateVersion7(),
-            UserName = phoneNumber,
-            CreatedOn = _timeProvider.GetUtcNow().DateTime
-        };
-        await _userRepository.AddAsync(user, ct);
-        await _unitOfWork.SaveChanges(CancellationToken.None);
-        return user;
-    }
-
-    private async Task<bool> SendOtpSms(string phoneNumber, string otp, CancellationToken ct = default)
-    {
-        var message = $"{CommonResource.ApplicationName}\n" +
-                      string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
-
-        return await _messageService.SendMessageAsync(phoneNumber, message, ct);
-    }
+    #region Send Event Notification
 
     private async Task<bool> SendLoginNotification(string phoneNumber, string ipAddress)
     {
@@ -582,26 +652,6 @@ internal class IdentityService : IIdentityService
             lockoutEnd.ToPersianDateTime().ToShortDateString(), lockoutEnd.ToPersianDateTime().ToLongTimeString());
         return await _messageService.SendMessageAsync(phoneNumber, message);
     }
-
-    private void RegisterFailedLoginAttempt(User user)
-    {
-        if (!user.LockoutEnabled) return;
-
-        user.AccessFailedCount++;
-
-        var utcNow = _timeProvider.GetUtcNow();
-
-        user.LockoutEnd = user.AccessFailedCount switch
-        {
-            >= 15 => utcNow.AddDays(1).DateTime,
-            >= 10 => utcNow.AddHours(1).DateTime,
-            >= 5 => utcNow.AddMinutes(15).DateTime,
-            _ => user.LockoutEnd
-        };
-    }
-
-    private bool IsLockedOut(User user)
-        => user is { LockoutEnabled: true, LockoutEnd: not null } && user.LockoutEnd.Value > _timeProvider.GetUtcNow();
 
     #endregion
 
