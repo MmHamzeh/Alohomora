@@ -42,10 +42,16 @@ internal class AuthOtpRepository : IAuthOtpRepository
             .FirstOrDefaultAsync(e => e.UserEmail == email && e.Code == code && e.IsUsed == false, ct);
     }
 
-    public async Task<AuthOtp?> GetNotUseByUserPublicId(Guid publicId, CancellationToken ct)
+    public async Task<AuthOtp?> GetValidByUserPublicId(Guid publicId, CancellationToken ct)
     {
         return await _dbContext.AuthOtps
-            .FirstOrDefaultAsync(e => e.User.PublicId == publicId && e.IsUsed == false, ct);
+            .FirstOrDefaultAsync(e => e.User.PublicId == publicId && e.Expires >= DateTime.Now  && e.IsUsed == false, ct);
+    }
+
+    public async Task<AuthOtp?> GetValidByUserPublicIdAndCode(Guid publicId, string code, CancellationToken ct)
+    {
+        return await _dbContext.AuthOtps
+            .FirstOrDefaultAsync(e => e.User.PublicId == publicId && e.Code == code && e.Expires >= DateTime.Now  && e.IsUsed == false, ct);
     }
 
 }

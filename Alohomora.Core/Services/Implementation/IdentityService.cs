@@ -24,6 +24,7 @@ internal class IdentityService : IIdentityService
     private readonly ISmsService _messageService;
     private readonly IEmailService _emailService;
     private readonly IEasyCachingProvider _accessTokenCacheStore;
+    private readonly ILookupNormalizer _normalizer;
 
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IAuthOtpRepository _authOtpRepository;
@@ -31,7 +32,7 @@ internal class IdentityService : IIdentityService
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly TimeProvider _timeProvider;
 
-    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEmailService emailService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, IPasswordHasher<User> passwordHasher, TimeProvider timeProvider)
+    internal IdentityService(ITokenService tokenService, IHttpContextAccessor httpContextAccessor, IUnitOfWork unitOfWork, ISmsService messageService, IEmailService emailService, IEasyCachingProviderFactory easyCachingProviderFactory, TokenHelper tokenHelper, IPasswordHasher<User> passwordHasher, TimeProvider timeProvider, ILookupNormalizer normalizer)
     {
         _tokenService = tokenService;
         _httpContextAccessor = httpContextAccessor;
@@ -41,6 +42,7 @@ internal class IdentityService : IIdentityService
         _tokenHelper = tokenHelper;
         _passwordHasher = passwordHasher;
         _timeProvider = timeProvider;
+        _normalizer = normalizer;
 
         _accessTokenCacheStore = easyCachingProviderFactory.GetCachingProvider(EasyCachingConfigs.AccessTokenIdStoreName);
 
@@ -53,7 +55,7 @@ internal class IdentityService : IIdentityService
 
     #region Send Login Otp
 
-    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(LoginDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(PhoneNumberLoginOtpDto dto, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(dto.PhoneNumber))
             return new SingleResponse<LoginVm>(ErrorMessageResource.WrongPhoneNumberFormat);
@@ -73,13 +75,60 @@ internal class IdentityService : IIdentityService
                 return new SingleResponse<LoginVm>(ErrorMessageResource.UserNotFound);
         }
 
-        var authOtp = await _authOtpRepository.GetValidByPhoneNumber(dto.PhoneNumber, ct);
+        return SendLoginOtpAsync(user, LoginMethodEnm.PhoneNumber, ct);
+    }
+
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(EmailLoginOtpDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Email))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        if (!EmailHelper.IsValidEmail(dto.Email))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizedEmail = _normalizer.NormalizeEmail(dto.Email);
+
+        var user = await _userRepository.GetByEmail(normalizedEmail, enableTracking: true, ct);
+
+        if (user is null)
+        {
+            if (ApplicationConfig.CreateUserIfNotExists)
+                user = await CreateUser(normalizePhoneNumber, ct);
+            else
+                return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+        }
+
+        return SendLoginOtpAsync(user, LoginMethodEnm.Email, ct);
+    }
+
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(UsernameLoginOtpDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Username))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizedUsername = _normalizer.NormalizeNormalizeName(dto.Username);
+
+        var user = await _userRepository.GetByUsername(normalizedUsername, enableTracking: true, ct);
+
+        if (user is null)
+        {
+            if (ApplicationConfig.CreateUserIfNotExists)
+                user = await CreateUser(normalizePhoneNumber, ct);
+            else
+                return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+        }
+
+        return SendLoginOtpAsync(user, LoginMethodEnm.Username, ct);
+    }
+
+    private async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(User user, LoginMethodEnm loginMethod, CancellationToken ct)
+    {
+        var authOtp = await _authOtpRepository.GetValidUserPublicId(user.PublicId, ct);
 
         if (authOtp is null)
         {
             var otp = OtpHelper.GenerateAuthOtp();
 
-            // Prepare a new OTP entry (don't persist until we confirm sending)
             authOtp = new AuthOtp
             {
                 PublicId = Guid.CreateVersion7(),
@@ -90,8 +139,6 @@ internal class IdentityService : IIdentityService
                 UserPhoneNumber = user.PhoneNumber,
                 UserEmail = user.Email
             };
-
-            // Note: do not persist yet - wait until at least one delivery channel succeeds
         }
         else
         {
@@ -99,26 +146,26 @@ internal class IdentityService : IIdentityService
             authOtp.Expires = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
             authOtp.IsUsed = false;
         }
+        
+        var isOtpSent = false;
 
-        // Build message
         var message = GenerateOtpMessage(authOtp.Code);
+        var subject = string.Format(IdentityResource.OtpEmailSubject, CommonResource.ApplicationName);
 
-        // Try sending via SMS
-        var smsSent = await SendOtpSms(normalizePhoneNumber, authOtp.Code, ct);
-
-        // Try sending via Email if available
-        var emailSent = false;
-        if (!string.IsNullOrEmpty(user.Email))
+        if (loginMethod == LoginMethodEnm.PhoneNumber)
+            isOtpSent = await SendOtpSms(normalizePhoneNumber, authOtp.Code, ct);
+        else if (loginMethod == LoginMethodEnm.Email)
+            isOtpSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
+        else 
         {
-            var subject = string.Format(IdentityResource.OtpEmailSubject, CommonResource.ApplicationName);
-            emailSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
+            if (user.PhoneNumberConfirmed)
+                isOtpSent = await SendOtpSms(normalizePhoneNumber, authOtp.Code, ct);
+            if (user.EmailConfirmed)
+                isOtpSent = await _emailService.SendEmailAsync(user.Email, subject, message, ct);
         }
 
-        if (!smsSent && !emailSent)
-        {
-            // Do not persist OTP if we couldn't deliver it
+        if (!isOtpSent)
             return new SingleResponse<LoginVm>(string.Format(ErrorMessageResource.FailedToSendOtp));
-        }
 
         // Persist OTP (either updated or new)
         if (authOtp.Id == 0)
@@ -140,20 +187,20 @@ internal class IdentityService : IIdentityService
         return response;
     }
 
-
-
-
     private static string GenerateOtpMessage(string authOtpCode)
     {
         return string.Format(IdentityResource.OtpMessage, ApplicationConfig.ApplicationName, authOtpCode,
             ApplicationConfig.AuthDomain, authOtpCode);
     }
-
     
     private async Task<bool> SendOtpSms(string phoneNumber, string otp, CancellationToken ct = default)
     {
+        var now = _timeProvider.GetUtcNow().DateTime.ToPersianDateTime();
+        var shortDateString = now.ToShortDateString();
+        var longTimeString = now.ToLongTimeString();
+
         var message = $"{CommonResource.ApplicationName}\n" +
-                      string.Format(IdentityResource.OtpMessage, otp, otp, _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToShortDateString(), _timeProvider.GetUtcNow().DateTime.ToPersianDateTime().ToLongTimeString());
+                      string.Format(IdentityResource.OtpMessage, otp, otp, shortDateString, longTimeString);
 
         return await _messageService.SendMessageAsync(phoneNumber, message, ct);
     }
@@ -171,12 +218,12 @@ internal class IdentityService : IIdentityService
         if (string.IsNullOrWhiteSpace(dto.PhoneNumber) || string.IsNullOrWhiteSpace(dto.Password))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
 
-        var normalizePhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
+        var normalizedPhoneNumber = PhoneNumberHelper.NormalizePhoneNumber(dto.PhoneNumber);
 
-        if (PhoneNumberHelper.IsValidPhoneNumber(normalizePhoneNumber) is false)
+        if (PhoneNumberHelper.IsValidPhoneNumber(normalizedPhoneNumber) is false)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
 
-        var user = await _userRepository.GetByPhoneNumber(normalizePhoneNumber, enableTracking: true, ct);
+        var user = await _userRepository.GetByPhoneNumber(normalizedPhoneNumber, enableTracking: true, ct);
 
         if (user is null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
@@ -184,7 +231,38 @@ internal class IdentityService : IIdentityService
         return LoginPasswordAsync(user, LoginMethodEnm.PhoneNumber);
     }
 
+    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(EmailLoginPasswordDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Email))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
 
+        if (!EmailHelper.IsValidEmail(dto.Email))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizedEmail = _normalizer.NormalizeEmail(dto.Email);
+
+        var user = await _userRepository.GetByEmail(normalizedEmail, enableTracking: true, ct);
+
+        if (user is null)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        return LoginPasswordAsync(user, LoginMethodEnm.PhoneNumber);
+    }
+
+    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(UsernameLoginPasswordDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Username))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizedUsername = _normalizer.NormalizeNormalizeName(dto.Username);
+
+        var user = await _userRepository.GetByUsername(normalizedUsername, enableTracking: true, ct);
+
+        if (user is null)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        return LoginPasswordAsync(user, LoginMethodEnm.PhoneNumber);
+    }
 
     private async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(User user, LoginMethodEnm loginMethod, LoginDto dto, CancellationToken ct)
     {
@@ -229,7 +307,7 @@ internal class IdentityService : IIdentityService
 
     #region Confirm OTP and login
 
-    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(LoginOtpDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(PhoneNumberLoginOtpDto dto, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(dto.PhoneNumber) || string.IsNullOrEmpty(dto.AuthOtpCode))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidOtpLoginAttempt);
@@ -244,17 +322,51 @@ internal class IdentityService : IIdentityService
         if (user is null)
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidOtpLoginAttempt);
 
+        return LoginOtpConfirmAsync(user, dto.AuthOtpCode, LoginMethodEnm.PhoneNumber, dto as LoginDto, ct)
+    }
+
+    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(EmailLoginOtpDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Email))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        if (!EmailHelper.IsValidEmail(dto.Email))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizedEmail = _normalizer.NormalizeEmail(dto.Email);
+
+        var user = await _userRepository.GetByEmail(normalizedEmail, enableTracking: true, ct);
+
+        if (user is null)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidOtpLoginAttempt);
+
+        return LoginOtpConfirmAsync(user, dto.AuthOtpCode, LoginMethodEnm.Email, dto as LoginDto, ct)
+    }
+
+    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(UsernameLoginOtpDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Username))
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
+
+        var normalizedUsername = _normalizer.NormalizeNormalizeName(dto.Username);
+
+        var user = await _userRepository.GetByUsername(normalizedUsername, enableTracking: true, ct);
+
+        if (user is null)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidOtpLoginAttempt);
+
+        return LoginOtpConfirmAsync(user, dto.AuthOtpCode, LoginMethodEnm.Username, dto as LoginDto, ct)
+    }
+
+    private async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(User user, string otp, LoginMethodEnm loginMethod, LoginDto dto, CancellationToken ct)
+    {
+        otp = otp.Trim();
+
         if (user.LockoutEnabled && user.LockoutEnd > _timeProvider.GetUtcNow())
         {
             var errorMessage = await FailedOtpLoginAttempt(user);
             await _unitOfWork.SaveChanges(CancellationToken.None);
             return new SingleResponse<LoginVm>(errorMessage);
-        }
-
-        if (user.LockoutEnabled && user.LockoutEnd <= _timeProvider.GetUtcNow())
-        {
-            user.LockoutEnabled = false;
-            user.LockoutEnd = null;
         }
 
         if (user.UserStatusId != UserStatusEnm.Active)
@@ -264,9 +376,9 @@ internal class IdentityService : IIdentityService
             return new SingleResponse<LoginVm>(errorMessage);
         }
 
-        var otp = await _authOtpRepository.GetValidByPhoneNumberAndCode(normalizePhoneNumber, dto.AuthOtpCode, ct);
+        var otp = await _authOtpRepository.GetValidByUserPublicIdAndCode(user.PublicId, otp, ct);
 
-        if (otp is null || otp.IsUsed || otp.Expires < _timeProvider.GetUtcNow())
+        if (otp is null || otp.Code != otp || otp.IsUsed || otp.Expires < _timeProvider.GetUtcNow())
         {
             var errorMessage = await FailedOtpLoginAttempt(user);
             await _unitOfWork.SaveChanges(CancellationToken.None);
@@ -274,37 +386,10 @@ internal class IdentityService : IIdentityService
         }
 
         otp.IsUsed = true;
-
-        if (user.PhoneNumberConfirmed is false)
-            user.PhoneNumberConfirmed = true;
-
-        if (user.AccessFailedCount > 0)
-            user.AccessFailedCount = 0;
-
         await _unitOfWork.SaveChanges(CancellationToken.None);
 
-        var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
-
-        await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
-            user.PublicId,
-            TimeSpan.FromMinutes(ApplicationSetting.AccessTokenExpirationMinutes),
-            ct);
-
-
-        if (ct.IsCancellationRequested)
-            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
-
-        LoginVm loginVm = new()
-        {
-            AccessToken = tokens.AccessToken,
-            RefreshToken = tokens.RefreshToken,
-            ReturnUrl = dto.ReturnUrl
-        };
-
-        return new SingleResponse<LoginVm>(loginVm);
+        return await LoginAsync(user, loginMethod, dto)
     }
-
-    
 
     private async Task<string> FailedOtpLoginAttempt(User user)
         => await HandleFailedLoginAsync(user, passwordUsed: false);
@@ -314,20 +399,47 @@ internal class IdentityService : IIdentityService
 
     private async Task<ISingleResponse<LoginVm>> LoginAsync(User user, LoginMethodEnm loginMethod, LoginDto dto)
     {
-        var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
-       
+        var needSaveChange = false;
+
         if (loginMethod == LoginMethod.PhoneNumber && user.PhoneNumberConfirmed is false)
+        {
+            user.PhoneNumberConfirmed = true;
+            needSaveChange = true;
+
             dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl)
                 ? ApplicationConfig.ConfirmPhoneNumberUrl
                 : ApplicationConfig.ConfirmPhoneNumberUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
+        }
 
         if (loginMethod == LoginMethod.Email && user.EmailConfirmed is false)
+        {
+            user.EmailConfirmed = true;
+            needSaveChange = true;
+
             dto.ReturnUrl = string.IsNullOrWhiteSpace(dto.ReturnUrl)
                 ? ApplicationConfig.ConfirmEmailUrl
                 : ApplicationConfig.ConfirmEmailUrlWithReturnUrl.Replace("{returnUrl}", Uri.EscapeDataString(dto.ReturnUrl));
+        }
+
+        if (user.AccessFailedCount > 0)
+        {
+            user.AccessFailedCount = 0;
+            needSaveChange = true;
+        }
+
+        if (user.LockoutEnabled && user.LockoutEnd <= _timeProvider.GetUtcNow())
+        {
+            user.LockoutEnd = null;
+            needSaveChange = true;
+        }
+
+        if (needSaveChange)
+            await _unitOfWork.SaveChanges(CancellationToken.None);
 
         if (ct.IsCancellationRequested)
             return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
+
+        var tokens = await _tokenService.GenerateTokensAsync(user, dto.RememberMe);
 
         await _accessTokenCacheStore.SetAsync(tokens.AccessTokenId.ToString(),
             user.PublicId,
@@ -340,11 +452,13 @@ internal class IdentityService : IIdentityService
             RefreshToken = tokens.RefreshToken,
             ReturnUrl = dto.ReturnUrl
         };
+            
+        if (ct.IsCancellationRequested)
+            return new SingleResponse<LoginVm>(ErrorMessageResource.OperationCancelled);
 
         return new SingleResponse<LoginVm>(loginVm);
     }
 
-    
     private async Task<string> HandleFailedLoginAsync(User user, bool passwordUsed, CancellationToken cancellationToken = default)
     {
         var utcNow = _timeProvider.GetUtcNow();
@@ -368,7 +482,6 @@ internal class IdentityService : IIdentityService
             : ErrorMessageResource.InvalidOtpLoginAttempt;
     }
 
-    
     private void RegisterFailedLoginAttempt(User user)
     {
         if (!user.LockoutEnabled) return;
@@ -388,8 +501,7 @@ internal class IdentityService : IIdentityService
 
     private bool IsLockedOut(User user)
         => user is { LockoutEnabled: true, LockoutEnd: not null } && user.LockoutEnd.Value > _timeProvider.GetUtcNow();
-
-
+    
     #endregion
 
     #region Logout

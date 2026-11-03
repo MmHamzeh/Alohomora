@@ -37,8 +37,7 @@ public class PayamResanService(IHttpClientFactory httpClientFactory, string apiK
         return finalResult?.Success ?? false;
     }
 
-    public async Task<bool> SendMessageAsync(List<string> phoneNumberList, string message,
-        CancellationToken ct = default)
+    public async Task<bool> SendMessageAsync(List<string> phoneNumberList, string message, CancellationToken ct = default)
     {
         var dto = new SendBulkSMSDto
         {

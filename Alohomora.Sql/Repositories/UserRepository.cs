@@ -33,6 +33,35 @@ internal class UserRepository : IUserRepository
         return await users.FirstOrDefaultAsync(e => e.PhoneNumber == phoneNumber, ct);
     }
 
+    public async Task<bool> ExistsByEmail(string normalizedEmail, CancellationToken ct)
+    {
+        return await _dbContext.Users.AnyAsync(e => e.NormalizedEmail == email, ct);
+    }
+
+    public async Task<User?> GetByEmail(string normalizedEmail, bool enableTracking, CancellationToken ct)
+    {
+        var users = enableTracking
+            ? _dbContext.Users
+            : _dbContext.Users.AsNoTracking();
+
+        return await users.FirstOrDefaultAsync(e => e.NormalizedEmail == email, ct);
+    }
+   
+
+    public async Task<bool> ExistsByUsername(string normalizedUsername, CancellationToken ct)
+    {
+        return await _dbContext.Users.AnyAsync(e => e.NormalizedUsername == username, ct);
+    }
+
+    public async Task<User?> GetByUsername(string normalizedUsername, bool enableTracking, CancellationToken ct)
+    {
+        var users = enableTracking
+            ? _dbContext.Users
+            : _dbContext.Users.AsNoTracking();
+
+        return await users.FirstOrDefaultAsync(e => e.NormalizedUsername == username, ct);
+    }
+
     public async Task<User?> GetByPublicId(Guid userPublicId, bool enableTracking, CancellationToken ct)
     {
         var users = enableTracking

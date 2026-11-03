@@ -38,13 +38,13 @@ public class EmailLoginOtpDto : LoginDto, IEmailLogin, ILoginWithOtp
 
 public class UsernameLoginPasswordDto : LoginDto, IEmailLogin, ILoginWithPassword
 {
-    public string Email { get; set; } 
+    public string Username { get; set; } 
     public string Password { get; set; } 
 }
 
 public class UsernameLoginOtpDto : LoginDto, IEmailLogin, ILoginWithOtp
 {
-    public string Email { get; set; } 
+    public string Username { get; set; } 
     public string AuthOtpCode { get; set; } 
 }
 
