@@ -7,16 +7,16 @@ namespace Alohomora.Core.Services.Contact;
 public interface IIdentityService
 {
     Task<ISingleResponse<LoginVm>> LoginPasswordAsync(PhoneNumberLoginPasswordDto dto, CancellationToken ct);
-    Task<ISingleResponse<LoginVm>> LoginPasswordAsync(EmailLoginPasswordDto dto, CancellationToken ct);
-    Task<ISingleResponse<LoginVm>> LoginPasswordAsync(UsernameLoginPasswordDto dto, CancellationToken ct);
+    Task<ISingleResponse<LoginVm>> LoginPasswordAsync(EmailBaseLoginPasswordDto dto, CancellationToken ct);
+    Task<ISingleResponse<LoginVm>> LoginPasswordAsync(UsernameBaseLoginPasswordDto dto, CancellationToken ct);
 
     Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(PhoneNumberLoginOtpDto dto, CancellationToken ct);
-    Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(EmailLoginOtpDto dto, CancellationToken ct);
-    Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(UsernameLoginOtpDto dto, CancellationToken ct);
+    Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(EmailBaseLoginOtpDto dto, CancellationToken ct);
+    Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(UsernameBaseLoginOtpDto dto, CancellationToken ct);
 
     Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(PhoneNumberLoginOtpDto dto, CancellationToken ct);
-    Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(EmailLoginOtpDto dto, CancellationToken ct);
-    Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(UsernameLoginOtpDto dto, CancellationToken ct);
+    Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(EmailBaseLoginOtpDto dto, CancellationToken ct);
+    Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(UsernameBaseLoginOtpDto dto, CancellationToken ct);
     
     
     Task<LogoutVm> LogOutAsync();

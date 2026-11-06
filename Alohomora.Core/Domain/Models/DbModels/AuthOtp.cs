@@ -15,6 +15,8 @@ public class AuthOtp : IDbTable<long>
     public string? UserPhoneNumber { get; set; }
     public string? UserEmail { get; set; }
 
+    public byte[] Version { get; set; }
+
     #region Relations
 
     public User? User { get; set; }

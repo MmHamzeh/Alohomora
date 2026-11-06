@@ -13,6 +13,10 @@ public static class ApplicationConfig
     public static string ConfirmPhoneNumberUrl { get; set; } = "/Login-Confirm";
     public static string ConfirmPhoneNumberUrlWithReturnUrl { get; set; } = "/Login-Confirm?returnUrl={0}";
 
+
+    public static string ConfirmEmailUrl { get; set; } = "/Login-Confirm";
+    public static string ConfirmEmailUrlWithReturnUrl { get; set; } = "/Login-Confirm?returnUrl={0}";
+
     public static bool CreateUserIfNotExists { get; set; } = true;
 
     public static bool SendLoginSmsNotification { get; set; } = false;
@@ -29,4 +33,7 @@ public static class ApplicationConfig
 
     public static int AccessTokenExpirationMinutes = 10;
     public static int OtpExpirationMinutes = 5;
+
+    public static bool UseUtcTime { get; set; } = true;
+
 }

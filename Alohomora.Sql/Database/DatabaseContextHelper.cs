@@ -137,6 +137,11 @@ internal abstract class DatabaseContextHelper
             .HasDefaultValue(value: false)
             .IsRequired();
 
+        modelBuilder.Entity<AuthOtp>().Property(p => p.Version)
+            .HasComment("Row version for concurrency check")
+            .IsRowVersion();
+
+
         #endregion
 
         #region Relations
@@ -255,11 +260,17 @@ internal abstract class DatabaseContextHelper
 
         #region Properties
 
-        modelBuilder.Entity<User>().Property(p => p.UserName)
+        modelBuilder.Entity<User>().Property(p => p.Username)
             .HasMaxLength(64)
             .IsUnicode(false)
             .IsRequired()
             .HasComment("نام کاربری");
+
+        modelBuilder.Entity<User>().Property(p => p.NormalizedUsername)
+            .HasMaxLength(64)
+            .IsUnicode(false)
+            .IsRequired()
+            .HasComment("نام کاربری نرمال شده");
 
         modelBuilder.Entity<User>().Property(p => p.PhoneNumber)
             .HasMaxLength(11)
@@ -278,6 +289,12 @@ internal abstract class DatabaseContextHelper
             .IsUnicode(false)
             .IsRequired(false)
             .HasComment("ایمیل");
+
+        modelBuilder.Entity<User>().Property(p => p.NormalizedEmail)
+            .HasMaxLength(128)
+            .IsUnicode(false)
+            .IsRequired(false)
+            .HasComment("ایمیل نرمال شده");
 
         modelBuilder.Entity<User>().Property(p => p.EmailConfirmed)
             .IsRequired()
@@ -317,8 +334,9 @@ internal abstract class DatabaseContextHelper
         #region Index
 
         modelBuilder.Entity<User>().HasIndex(e => e.PublicId).IsUnique();
-        modelBuilder.Entity<User>().HasIndex(e => e.UserName).IsUnique();
-        modelBuilder.Entity<User>().HasIndex(e => e.PhoneNumber);
+        modelBuilder.Entity<User>().HasIndex(e => e.NormalizedEmail).IsUnique();
+        modelBuilder.Entity<User>().HasIndex(e => e.NormalizedUsername).IsUnique();
+        modelBuilder.Entity<User>().HasIndex(e => e.PhoneNumber).IsUnique();
 
         #endregion
 

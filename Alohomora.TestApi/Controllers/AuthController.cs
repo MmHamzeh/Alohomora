@@ -9,7 +9,7 @@ public class AuthController(IIdentityService identityService) : ControllerBase
     /// </summary>
     [HttpPost("login-password")]
     [AllowAnonymous]
-    public async Task<IActionResult> LoginPassword([FromBody] LoginPasswordDto dto, CancellationToken ct)
+    public async Task<IActionResult> LoginPassword([FromBody] PhoneNumberLoginPasswordDto dto, CancellationToken ct)
     {
         var result = await identityService.LoginPasswordAsync(dto, ct);
         
@@ -24,9 +24,9 @@ public class AuthController(IIdentityService identityService) : ControllerBase
     /// </summary>
     [HttpPost("send-otp")]
     [AllowAnonymous]
-    public async Task<IActionResult> SendLoginOtp([FromBody] LoginDto dto, CancellationToken ct)
+    public async Task<IActionResult> SendLoginOtp([FromBody] PhoneNumberLoginOtpDto dto, CancellationToken ct)
     {
-        var result = await identityService.SendLoginOtpAsync(dto, createUserIfNotExists: true, ct: ct);
+        var result = await identityService.SendLoginOtpAsync(dto, ct: ct);
         
         if (!result.Success)
             return BadRequest(result);
@@ -39,7 +39,7 @@ public class AuthController(IIdentityService identityService) : ControllerBase
     /// </summary>
     [HttpPost("confirm-otp")]
     [AllowAnonymous]
-    public async Task<IActionResult> LoginOtpConfirm([FromBody] LoginOtpDto dto, CancellationToken ct)
+    public async Task<IActionResult> LoginOtpConfirm([FromBody] PhoneNumberLoginOtpDto dto, CancellationToken ct)
     {
         var result = await identityService.LoginOtpConfirmAsync(dto, ct);
         

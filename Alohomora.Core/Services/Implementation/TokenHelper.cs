@@ -7,10 +7,9 @@ public class TokenHelper : IDisposable
 {
     #region Fields and Ctor
 
-    private readonly bool useRsa;
+    private readonly bool _useRsa;
     private readonly string _secAlgorithm;
 
-    private readonly JwtSettings _settings;
     private readonly string _issuer;
     private readonly string _audience;
 
@@ -23,24 +22,24 @@ public class TokenHelper : IDisposable
     private readonly string _privateKeyFilePath;
     private readonly string _publicKeyFilePath;
     private readonly TimeProvider _timeProvider;
-
     private TokenValidationParameters? _tokenValidationParameters = null;
+    private readonly JwtSettings _settings;
 
     public TokenHelper(IOptions<JwtSettings> options, TimeProvider timeProvider)
     {
         _settings = options.Value;
-        useRsa = _settings.UseRsa;
+        _useRsa = _settings.UseRsa;
         _issuer = _settings.Issuer;
         _audience = _settings.Audience;
         _timeProvider = timeProvider;
 
-        TokenHandler = new();
+        TokenHandler = new JwtSecurityTokenHandler();
 
-        _secAlgorithm = useRsa
+        _secAlgorithm = _useRsa
             ? SecurityAlgorithms.RsaSha256
             : SecurityAlgorithms.HmacSha256;
 
-        if (useRsa)
+        if (_useRsa)
         {
             var rsaKeysFullDirectory = Path.Combine(AppContext.BaseDirectory, ApplicationSetting.RsaKeysDirectory);
 
@@ -285,7 +284,7 @@ public class TokenHelper : IDisposable
     }
 
     private SecurityKey SecKey =>
-        useRsa
+        _useRsa
             ? GetRsaSecurityKey()
             : GetSymmetricSecurityKey();
 
