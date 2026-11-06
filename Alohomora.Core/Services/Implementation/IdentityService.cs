@@ -79,7 +79,7 @@ internal class IdentityService : IIdentityService
         return await SendLoginOtpAsync(user, LoginMethodEnm.PhoneNumber, dto.ReturnUrl, ct);
     }
 
-    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(EmailBaseLoginOtpDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(EmailLoginOtpDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Email))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
@@ -102,7 +102,7 @@ internal class IdentityService : IIdentityService
         return await SendLoginOtpAsync(user, LoginMethodEnm.Email, dto.ReturnUrl, ct);
     }
 
-    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(UsernameBaseLoginOtpDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> SendLoginOtpAsync(UsernameLoginOtpDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Username))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
@@ -233,7 +233,7 @@ internal class IdentityService : IIdentityService
         return await LoginPasswordAsync(user, LoginMethodEnm.PhoneNumber, dto, ct);
     }
 
-    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(EmailBaseLoginPasswordDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(EmailLoginPasswordDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Email))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
@@ -251,7 +251,7 @@ internal class IdentityService : IIdentityService
         return await LoginPasswordAsync(user, LoginMethodEnm.PhoneNumber, dto, ct);
     }
 
-    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(UsernameBaseLoginPasswordDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> LoginPasswordAsync(UsernameLoginPasswordDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Username))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
@@ -325,7 +325,7 @@ internal class IdentityService : IIdentityService
         return await LoginOtpConfirmAsync(user, LoginMethodEnm.PhoneNumber, dto, ct);
     }
 
-    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(EmailBaseLoginOtpDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(EmailLoginOtpDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Email))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);
@@ -343,7 +343,7 @@ internal class IdentityService : IIdentityService
         return await LoginOtpConfirmAsync(user, LoginMethodEnm.Email, dto, ct);
     }
 
-    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(UsernameBaseLoginOtpDto dto, CancellationToken ct)
+    public async Task<ISingleResponse<LoginVm>> LoginOtpConfirmAsync(UsernameLoginOtpDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Username))
             return new SingleResponse<LoginVm>(ErrorMessageResource.InvalidPasswordLoginAttempt);

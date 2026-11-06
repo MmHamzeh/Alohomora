@@ -27,24 +27,24 @@ public sealed class PhoneNumberLoginOtpDto : BaseOtpLoginDto, IPhoneNumberLogin
 
 
 
-public sealed class EmailBaseLoginPasswordDto : BasePasswordLoginDto, IEmailLogin
+public sealed class EmailLoginPasswordDto : BasePasswordLoginDto, IEmailLogin
 {
     public required string Email { get; set; }
 }
 
-public sealed class EmailBaseLoginOtpDto : BaseOtpLoginDto, IEmailLogin
+public sealed class EmailLoginOtpDto : BaseOtpLoginDto, IEmailLogin
 {
     public required string Email { get; set; }
 }
 
 
 
-public sealed class UsernameBaseLoginPasswordDto : BasePasswordLoginDto, IUsernameLogin
+public sealed class UsernameLoginPasswordDto : BasePasswordLoginDto, IUsernameLogin
 {
     public required string Username { get; set; }
 }
 
-public sealed class UsernameBaseLoginOtpDto : BaseOtpLoginDto, IUsernameLogin
+public sealed class UsernameLoginOtpDto : BaseOtpLoginDto, IUsernameLogin
 {
     public required string Username { get; set; }
 }

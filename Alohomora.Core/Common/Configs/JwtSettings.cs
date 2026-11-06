@@ -10,3 +10,4 @@ public class JwtSettings
     public bool UseRsa { get; set; } = false;
     public int AccessTokenExpirationMinutes { get; set; } = ApplicationConfig.AccessTokenExpirationMinutes;
 }
+    

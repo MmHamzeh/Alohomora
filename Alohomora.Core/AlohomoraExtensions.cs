@@ -1,9 +1,12 @@
 using Alohomora.Core.Common.Configs;
+using Alohomora.Core.Common.Providers;
+using Alohomora.Core.Domain.Models.DbModels;
 using Alohomora.Core.Services.Contact.AuthServices;
 using Alohomora.Core.Services.Contact.ExternalServices;
 using Alohomora.Core.Services.Implementation;
 using Alohomora.Core.Services.Implementation.Config;
 using Alohomora.Core.Services.Implementation.ExternalServices;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -18,7 +21,13 @@ public static class AlohomoraExtensions
     {
         services.AddHttpContextAccessor();
 
+        services.AddSingleton<HtmlSanitizer>();
         services.AddSingleton<ITextSanitizerService, TextSanitizerService>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<ApplicationTimeProvider>();
+        services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton<ILookupNormalizer, UpperInvariantLookupNormalizer>();
+
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 
@@ -28,6 +37,8 @@ public static class AlohomoraExtensions
 
         ServicesDiHelper
             .ConfigureServices(services);
+
+        AddEasyCaching(services, configuration);
 
         services.AddAuthentication(options =>
         {

@@ -10,8 +10,8 @@ internal static class DataAccessDiHelper
             ?? DatabaseContextHelper.ConnectionString;
 
         //DatabaseContext
-        services.AddDbContextPool<DatabaseContext>(opt =>
-            opt.UseSqlServer(connectionString));
+        // services.AddDbContextPool<DatabaseContext>(opt => opt.UseSqlServer(connectionString));
+        services.AddDbContext<DatabaseContext>(opt => opt.UseSqlServer(connectionString));
 
 
         //Repositories

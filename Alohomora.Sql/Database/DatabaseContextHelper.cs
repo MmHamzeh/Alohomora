@@ -4,8 +4,8 @@ internal abstract class DatabaseContextHelper
 {
     internal static string Collation => "Latin1_General_100_CI_AI_SC_UTF8";
 
-    internal static bool EnableDetailedErrors => ApplicationSetting.IsDebugMode;
-    internal static bool EnableSensitiveDataLogging => ApplicationSetting.IsDebugMode;
+    internal static bool EnableDetailedErrors => ApplicationSetting.EnableDetailedErrors;
+    internal static bool EnableSensitiveDataLogging => ApplicationSetting.EnableSensitiveDataLogging;
 
     internal static void EnableIsDeletedQueryFilter(ModelBuilder modelBuilder)
     {
@@ -25,7 +25,6 @@ internal abstract class DatabaseContextHelper
             else
                 return "";
         }
-
     }
 
     internal static void SeedValues(ModelBuilder modelBuilder)
@@ -53,29 +52,29 @@ internal abstract class DatabaseContextHelper
             new() {
                 PublicId = Guid.Parse("00000000-0000-0000-0000-000000000000"),
                 Id = UserStatusEnm.Invalid,
-                Title = "نا معتبر",
-                TitleEn = UserStatusEnm.Invalid.ToString(),
+                Title = "نامعتبر",
+                TitleEn = nameof(UserStatusEnm.Invalid),
                 Description = UserStatusEnm.Invalid.GetDescription()
             },
             new() {
                 PublicId = Guid.Parse("1A00F5B7-0422-478D-A45F-CBA8AD6154DF"),
                 Id = UserStatusEnm.Active,
                 Title = "فعال",
-                TitleEn = UserStatusEnm.Active.ToString(),
+                TitleEn = nameof(UserStatusEnm.Active),
                 Description = UserStatusEnm.Active.GetDescription()
             },
             new() {
                 PublicId = Guid.Parse("BE6DAE57-0198-4C31-A492-2EFC5C017524"),
                 Id = UserStatusEnm.DeActive,
                 Title = "غیر فعال",
-                TitleEn = UserStatusEnm.DeActive.ToString(),
+                TitleEn = nameof(UserStatusEnm.DeActive),
                 Description = UserStatusEnm.DeActive.GetDescription()
             },
             new() {
                 PublicId = Guid.Parse("DEEA2A48-4C8B-4026-8454-158BC2F0C261"),
                 Id = UserStatusEnm.Deleted,
                 Title = "حذف شده",
-                TitleEn = UserStatusEnm.Deleted.ToString(),
+                TitleEn = nameof(UserStatusEnm.Deleted),
                 Description = UserStatusEnm.Deleted.GetDescription()
             }
         });

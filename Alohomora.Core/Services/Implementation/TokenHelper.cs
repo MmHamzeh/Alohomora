@@ -16,7 +16,7 @@ public class TokenHelper : IDisposable
     private readonly RSA? _rsa;
     private readonly string _privateKeyPem;
     private readonly string _publicKeyPem;
-    private readonly JwtSecurityTokenHandler TokenHandler;
+    private readonly JwtSecurityTokenHandler _tokenHandler;
     private byte[]? _secretKeyBytes;
 
     private readonly string _privateKeyFilePath;
@@ -33,7 +33,7 @@ public class TokenHelper : IDisposable
         _audience = _settings.Audience;
         _timeProvider = timeProvider;
 
-        TokenHandler = new JwtSecurityTokenHandler();
+        _tokenHandler = new JwtSecurityTokenHandler();
 
         _secAlgorithm = _useRsa
             ? SecurityAlgorithms.RsaSha256
@@ -102,7 +102,7 @@ public class TokenHelper : IDisposable
     internal JwtSecurityToken CreateAccessToken(Guid userPublicId, IList<string> roles)
     {
         var tokenDescriptor = GetAccessTokenDescriptor(userPublicId, roles);
-        return TokenHandler.CreateJwtSecurityToken(tokenDescriptor);
+        return _tokenHandler.CreateJwtSecurityToken(tokenDescriptor);
     }
 
     internal JwtSecurityToken ReadToken(string tokenString)
@@ -110,7 +110,7 @@ public class TokenHelper : IDisposable
         if (string.IsNullOrWhiteSpace(tokenString))
             throw new ArgumentNullException(nameof(tokenString), "Access token cannot be null or empty.");
 
-        var jwtToken = TokenHandler.ReadJwtToken(tokenString);
+        var jwtToken = _tokenHandler.ReadJwtToken(tokenString);
         if (jwtToken == null)
             throw new SecurityTokenException("Invalid access token format.");
 
@@ -119,7 +119,7 @@ public class TokenHelper : IDisposable
 
     internal string WriteToken(JwtSecurityToken token)
     {
-        return TokenHandler.WriteToken(token);
+        return _tokenHandler.WriteToken(token);
     }
 
     internal static RefreshToken CreateRefreshToken(long userId, Guid accessTokenId, TimeProvider timeProvider, bool rememberMe = false)
@@ -146,12 +146,12 @@ public class TokenHelper : IDisposable
         if (tokenString.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             tokenString = tokenString["Bearer ".Length..];
 
-        var tokenValidationResult = await TokenHandler.ValidateTokenAsync(tokenString, TokenValidationParameters);
+        var tokenValidationResult = await _tokenHandler.ValidateTokenAsync(tokenString, TokenValidationParameters);
         return tokenValidationResult.IsValid;
     }
 
     public TokenValidationParameters TokenValidationParameters =>
-        _tokenValidationParameters ??= new()
+        _tokenValidationParameters ??= new TokenValidationParameters
         {
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero, // Reduce time skew tolerance
@@ -203,7 +203,7 @@ public class TokenHelper : IDisposable
         var tokenValidationParameters = TokenValidationParameters.Clone();
         tokenValidationParameters.ValidateLifetime = false; // Ignore token expiration for this validation
 
-        var principal = TokenHandler.ValidateToken(tokenString, tokenValidationParameters, out var securityToken);
+        var principal = _tokenHandler.ValidateToken(tokenString, tokenValidationParameters, out var securityToken);
 
         if (securityToken is not JwtSecurityToken jwtSecToken ||
             !jwtSecToken.Header.Alg.Equals(_secAlgorithm, StringComparison.OrdinalIgnoreCase))

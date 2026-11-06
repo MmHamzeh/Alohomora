@@ -1,5 +1,6 @@
 
 using Alohomora.Core;
+using Alohomora.PayamResan;
 using Alohomora.Sql;
 using Alohomora.Sql.Config;
 using Alohomora.Sql.Database;
@@ -21,6 +22,8 @@ public class Program
         
         // Add Alohomora SQL Server data access layer
         builder.Services.AddAlohomoraSql(builder.Configuration);
+        builder.Services.AddAlohomoraPayamResan(builder.Configuration);
+
         
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();

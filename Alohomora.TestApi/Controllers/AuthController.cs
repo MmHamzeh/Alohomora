@@ -4,20 +4,67 @@
 [ApiController]
 public class AuthController(IIdentityService identityService) : ControllerBase
 {
+
+    #region Login
+
+    #region Passwor
+
+
     /// <summary>
     /// Login with password
     /// </summary>
-    [HttpPost("login-password")]
+    [HttpPost("login-phoneNumber-password")]
     [AllowAnonymous]
     public async Task<IActionResult> LoginPassword([FromBody] PhoneNumberLoginPasswordDto dto, CancellationToken ct)
     {
         var result = await identityService.LoginPasswordAsync(dto, ct);
-        
+
         if (!result.Success)
             return BadRequest(result);
-        
+
         return Ok(result);
     }
+
+
+    /// <summary>
+    /// Login with password
+    /// </summary>
+    [HttpPost("login-email-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> LoginPassword([FromBody] EmailLoginPasswordDto dto, CancellationToken ct)
+    {
+        var result = await identityService.LoginPasswordAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+
+    /// <summary>
+    /// Login with password
+    /// </summary>
+    [HttpPost("login-username-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> LoginPassword([FromBody] UsernameLoginPasswordDto dto, CancellationToken ct)
+    {
+        var result = await identityService.LoginPasswordAsync(dto, ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+
+
+
+
+    #endregion
+
+    #endregion
+
 
     /// <summary>
     /// Send OTP for login

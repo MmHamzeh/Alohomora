@@ -12,6 +12,8 @@ public static class ApplicationSetting
     // When true the API responses may include the OTP for testing/debugging.
     // Should be false in production to avoid leaking OTP codes.
     public const bool ExposeOtpInResponse = IsDebugMode;
+    public const bool EnableDetailedErrors = IsDebugMode;
+    public const bool EnableSensitiveDataLogging = IsDebugMode;
 
 
     public const string RsaKeysDirectory = "rsa-keys";

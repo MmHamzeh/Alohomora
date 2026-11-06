@@ -17,13 +17,13 @@ public static class AlohomoraPayamResanExtensions
         var payamResanApiKey = configuration.GetValue<string>("SmsService:PayamResan:ApiKey");
         var sender = configuration.GetValue<long>("SmsService:PayamResan:AuthSender");
 
-        if (string.IsNullOrEmpty(payamResanApiKey))
-            throw new Exception("SmsService > PayamResan > ApiKey is not provided");
+        //if (string.IsNullOrEmpty(payamResanApiKey))
+        //    throw new Exception("SmsService > PayamResan > ApiKey is not provided");
+        //
+        //if (sender == 0L)
+        //    throw new Exception("SmsService > PayamResan > AuthSender is not provided");
 
-        if (sender == 0L)
-            throw new Exception("SmsService > PayamResan > AuthSender is not provided");
-
-        services.AddSingleton<ISmsService, PayamResanService>(sp =>
+        services.AddScoped<ISmsService, PayamResanService>(sp =>
         {
             var httpClientFactoryService = sp.GetRequiredService<IHttpClientFactory>();
             return new PayamResanService(httpClientFactoryService, payamResanApiKey, sender);
